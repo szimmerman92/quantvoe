@@ -1,4 +1,3 @@
-
 #' Run initial association 
 #'
 #' Run initial association for a single feature
@@ -14,10 +13,11 @@
 #' @param strata Name of column in dataframe with strata. Relevant for survey data. (Default = NULL).
 #' @param weights Name of column containing sampling weights.
 #' @param nest If TRUE, relabel cluster ids to enforce nesting within strata.
+#' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @keywords regression, initial association
-regression <- function(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest){
+regression <- function(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest,num_knots){
   feature_name = colnames(dependent_variables)[j+1]
   if(primary_variable %in% colnames(dependent_variables %>% dplyr::select(.data$sampleID,c(feature_name)))){
     return('Regression not run due to presence of primary variable in dependent variable dataframe')
@@ -25,31 +25,57 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   regression_df=suppressMessages(dplyr::left_join(dependent_variables %>% dplyr::select(.data$sampleID,c(feature_name)),independent_variables %>% dplyr::mutate_if(is.factor, as.character)) %>% dplyr::mutate_if(is.character, as.factor))
   regression_df = regression_df %>% dplyr::select(-.data$sampleID)
   #final check to confirm ready for regressions
+  
+  if(num_knots > 0) {
+    primary_variable = paste("splines::ns(",primary_variable,",knots=",num_knots,")",sep="") # add this code
+  }
+  
   #run regression
   if(!is.null(constant_adjusters)){
     primary_variable_formodel = paste(paste(constant_adjusters,sep='+',collapse='+'),'+',primary_variable)
   }
   if(is.null(constant_adjusters)){
-      primary_variable_formodel = primary_variable
+    primary_variable_formodel = primary_variable
   }
+  
+  # if dependent variable is of type surival.
+  if(class(dependent_variables[[feature_name]])[1]=="Surv" & model_type != "survey") { 
+    # we will do cox regression
+    myformula = stats::as.formula(paste(feature_name, "~ ",primary_variable_formodel))
+    weights = regression_df %>% dplyr::select(weights) %>% unlist %>% unname
+    return(tryCatch(broom::tidy(coxph(formula=myformula,weights=weights,data=regression_df)) %>% dplyr::mutate(feature=feature_name),
+                    warning = function(w) w,
+                    error = function(e) e
+    ))
+  }
+  
+  
   if(model_type=='negative_binomial'){
     return(tryCatch(broom::tidy(MASS::glm.nb(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)) %>% dplyr::mutate(feature=feature_name),
-             warning = function(w) w, 
-             error = function(e) e
+                    warning = function(w) w, 
+                    error = function(e) e
     ))
   }
   if(model_type=='survey'){
     options(survey.lonely.psu="adjust")
     dsn=survey::svydesign(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,ids=regression_df %>% dplyr::select(ids) %>% unlist %>% unname,nest=as.logical(nest),strata=regression_df %>% dplyr::select(strata)  %>% unlist %>% unname,data=regression_df)
-    return(tryCatch(broom::tidy(survey::svyglm(family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),design=dsn)) %>% dplyr::mutate(feature=feature_name),
-             warning = function(w) w,
-             error = function(e) e
-    )) 
+    if(class(dependent_variables[[feature_name]])[1]=="Surv") {
+      myformula = stats::as.formula(paste(feature_name, "~ ",primary_variable_formodel))
+      return(tryCatch(broom::tidy(survey::svycoxph(formula=myformula,design=dsn)) %>% dplyr::mutate(feature=feature_name),
+                      warning = function(w) w,
+                      error = function(e) e
+      ))
+    } else {
+      return(tryCatch(broom::tidy(survey::svyglm(family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),design=dsn)) %>% dplyr::mutate(feature=feature_name),
+                      warning = function(w) w,
+                      error = function(e) e
+      )) 
+    }
   }
   if(model_type=='glm'){
     return(tryCatch(broom::tidy(stats::glm(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)) %>% dplyr::mutate(feature=feature_name),
-             warning = function(w) w,
-             error = function(e) e
+                    warning = function(w) w,
+                    error = function(e) e
     ))
   }
 }
@@ -68,13 +94,19 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
 #' @param strata Name of column in dataframe with strata. Relevant for survey data. (Default = NULL).
 #' @param weights Name of column containing sampling weights.
 #' @param nest If TRUE, relabel cluster ids to enforce nesting within strata.
+#' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @keywords regression, initial association
-run_associations <- function(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest){
+run_associations <- function(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,knots){
   dependent_variables <- dplyr::as_tibble(x[[1]])
+  
+  classes = dependent_variables %>% summarise_all(class)
+  classes = as.character(classes)
   colnames(dependent_variables)[[1]]='sampleID'
-  toremove = which(colSums(dependent_variables %>% dplyr::select(-.data$sampleID) == 0,na.rm=TRUE)/nrow(dependent_variables)>proportion_cutoff)
+  # get the column names that are of survival class
+  surv_vars = colnames(dependent_variables)[classes=="Surv"]
+  toremove = which(colSums(dependent_variables %>% dplyr::select(-.data$sampleID,-all_of(surv_vars)) == 0,na.rm=TRUE)/nrow(dependent_variables)>proportion_cutoff)
   print(paste("Removing",length(toremove),"features that are at least",proportion_cutoff*100,"percent zero values."))
   dependent_variables=dependent_variables %>% dplyr::select(-(toremove+1))
   if(ncol(dependent_variables)==1){
@@ -105,7 +137,7 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
     print('The following variables are in both the dependent and independent datasets. This may cause some some regressions to fail, though the pipeline will still run to completion.')
     print(overlap)
   }
-  out = purrr::map(seq_along(dependent_variables %>% dplyr::select(-.data$sampleID)), function(j) regression(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest))
+  out = purrr::map(seq_along(dependent_variables %>% dplyr::select(-.data$sampleID)), function(j) regression(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest,num_knots))
   out_success = out[unlist(purrr::map(out,function(x) tibble::is_tibble(x)))]
   if(length(out_success)!=length(out)){
     print(paste('Dropping',length(out)-length(out_success),'features with regressions that failed to converge.'))
@@ -135,18 +167,19 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
 #' @param strata Name of column in dataframe with strata. Relevant for survey data. (Default = NULL).
 #' @param weights Name of column containing sampling weights.
 #' @param nest If TRUE, relabel cluster ids to enforce nesting within strata.
+#' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @keywords regression, initial association
 #' @export
-compute_initial_associations <- function(bound_data,primary_variable, constant_adjusters = NULL,model_type = 'glm', proportion_cutoff = 1,vibrate = TRUE,family = gaussian(),ids = NULL,strata =NULL,weights =NULL,nest = NULL){
-    output = apply(bound_data, 1, function(x) run_associations(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest))
-    output_regs = purrr::map(output, function(x) x[[1]])
-    output_vib = unlist(unname(unique(purrr::map(output, function(x) x[[2]]))))
-    if(FALSE %in% output_vib & vibrate!=FALSE){
-      output_vib=FALSE
-      print('For at least one dataset, we dropped all the variables that you could possible vibrate over due to lacking multiple levels. Vibrate parameter being set to FALSE.')
-    }
-    output_regs = dplyr::bind_rows(output_regs)
+compute_initial_associations <- function(bound_data,primary_variable, constant_adjusters = NULL,model_type = 'glm', proportion_cutoff = 1,vibrate = TRUE,family = gaussian(),ids = NULL,strata =NULL,weights =NULL,nest = NULL,num_knots=0){
+  output = apply(bound_data, 1, function(x) run_associations(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots))
+  output_regs = purrr::map(output, function(x) x[[1]])
+  output_vib = unlist(unname(unique(purrr::map(output, function(x) x[[2]]))))
+  if(FALSE %in% output_vib & vibrate!=FALSE){
+    output_vib=FALSE
+    print('For at least one dataset, we dropped all the variables that you could possible vibrate over due to lacking multiple levels. Vibrate parameter being set to FALSE.')
+  }
+  output_regs = dplyr::bind_rows(output_regs)
   return(list('output'=output_regs,'vibrate'=output_vib))
 }

@@ -29,7 +29,9 @@ Imports:
     meta,
     broom,
     rje,
-    rmarkdown
+    rmarkdown,
+    survival,
+    splines
 RoxygenNote: 7.1.1
 Suggests: 
     testthat,

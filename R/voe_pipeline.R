@@ -1,4 +1,3 @@
-
 #' Full VoE Pipeline
 #'
 #' This function will run the full pipeline
@@ -21,11 +20,12 @@
 #' @param nest If TRUE, relabel cluster ids to enforce nesting within strata.
 #' @param confounder_analysis Run confounder analysis (default=TRUE).
 #' @param cores Number of cores to be used (default = 1)
+#' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @importFrom dplyr "%>%"
 #' @importFrom rlang .data
 #' @keywords pipeline
 #' @export
-full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='glm', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL){
+full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0){
   output_to_return = list()
   if(inherits(dependent_variables, "list")==TRUE){
     print('Identified multiple input datasets, preparing to run meta-analysis.')
@@ -44,7 +44,7 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
   if(passed==TRUE){
     Sys.sleep(2)
     print('Deploying initial associations')
-    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest)
+    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots)
     output_to_return[['initial_association_output']] = association_output_full[['output']]
     vibrate=association_output_full[['vibrate']]
     association_output=association_output_full[['output']]
@@ -56,14 +56,14 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     }
     else{
       features_of_interest = association_output %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::select(.data$feature) %>% unique
-   }
+    }
     if(length(unlist(unname(features_of_interest)))==0){
       print('No significant features found, consider adjusting parameters or data and trying again.')
       return(output_to_return)
     }
     if(vibrate==TRUE){
       output_to_return[['features_to_vibrate_over']] = features_of_interest
-      vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest)
+      vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest,num_knots)
       output_to_return[['vibration_variables']] = vibration_output[[2]]
       if(confounder_analysis==TRUE){
         analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters)
