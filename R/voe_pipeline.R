@@ -5,6 +5,7 @@
 #' @param independent_variables A tibble containing the information for your independent variables (e.g. bacteria relative abundance, age). The columns should correspond to different variables, and the rows should correspond to different units,  (e.g. individual1, individual2, etc). If passing multiple datasets, pass a named list of the same length and in the same order as the dependent_variables parameter. If running from the command line, pass the path (or comma separated paths) to .rds files containing the data, one per dataset.
 #' @param primary_variable The column name from the independent_variables tibble containing the key variable you want to associate with disease in your first round of modeling (prior to vibration). For example, if you are interested fundamentally identifying how well age can predict height, you would make this value a string referring to whatever column in said dataframe refers to "age."
 #' @param constant_adjusters A character vector (or just one string) corresponding to column names in your dataset to include in every vibration. (default = NULL)
+#' @param initial_regression_independent_vars A character vector (or just one string) corresponding to column names in your dataset to include in the initial association (default = NULL)
 #' @param vibrate TRUE/FALSE -- run vibrations (default=TRUE)
 #' @param max_vars_in_model Maximum number of variables allowed in a single fit in vibrations. In case an individual has many hundreds of metadata features, this prevents models from being fit with excessive numbers of variables. Modifying this parameter will change runtime for large datasets. For example, just computing all possible models for 100 variables is extremely slow. (default = 20)
 #' @param fdr_method Your choice of method for adjusting p-values. Options are BY (default), BH, or bonferroni. Adjustment is computed for all initial, single variable, associations across all dependent features. 
@@ -25,7 +26,7 @@
 #' @importFrom rlang .data
 #' @keywords pipeline
 #' @export
-full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0){
+full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,initial_regression_independent_vars=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0){
   output_to_return = list()
   if(inherits(dependent_variables, "list")==TRUE){
     print('Identified multiple input datasets, preparing to run meta-analysis.')
@@ -44,7 +45,7 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
   if(passed==TRUE){
     Sys.sleep(2)
     print('Deploying initial associations')
-    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots)
+    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters=initial_regression_independent_vars,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots)
     output_to_return[['initial_association_output']] = association_output_full[['output']]
     vibrate=association_output_full[['vibrate']]
     association_output=association_output_full[['output']]

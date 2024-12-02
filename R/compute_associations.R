@@ -27,7 +27,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   #final check to confirm ready for regressions
   
   if(num_knots > 0) {
-    primary_variable = paste("splines::ns(",primary_variable,",knots=",num_knots,")",sep="") # add this code
+    primary_variable = paste("splines::ns(",primary_variable,",df=",num_knots,")",sep="") # add this code
   }
   
   #run regression
