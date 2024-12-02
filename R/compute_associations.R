@@ -98,7 +98,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @keywords regression, initial association
-run_associations <- function(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,knots){
+run_associations <- function(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots){
   dependent_variables <- dplyr::as_tibble(x[[1]])
   
   classes = dependent_variables %>% summarise_all(class)
