@@ -46,9 +46,10 @@ find_confounders_linear <- function(voe_list_for_reg){
   if('dependent_feature' %in% colnames(voe_adjust_for_reg_ptype)){ 
     if(!(1 %in% unique(unlist(unname(table(voe_adjust_for_reg_ptype$dependent_feature)))))){
       tryCatch({
-        fit_estimate=lme4::lmer(data=voe_adjust_for_reg_ptype,stats::as.formula(estimate ~ . +(1|dependent_feature) - dependent_feature - estimate - p.value),control = lme4::lmerControl(optimizer = "bobyqa"))
+        voe_adjust_for_reg_ptype_split = split(voe_adjust_for_reg_ptype,voe_adjust_for_reg_ptype$term)
+        fit_estimate = purrr::map(voe_adjust_for_reg_ptype_split, ~ lme4::lmer(data=.x %>% dplyr::select_if(~ length(unique(.)) > 1),stats::as.formula(estimate ~ . +(1|dependent_feature) - dependent_feature - estimate - p.value),control = lme4::lmerControl(optimizer = "bobyqa")))
         fullmod=fit_estimate
-        fit_estimate_forplot=broom.mixed::tidy(fit_estimate) %>% dplyr::mutate(sdmin=(.data$estimate-.data$std.error),sdmax=(.data$estimate+.data$std.error))
+        fit_estimate_forplot = purrr::map(fit_estimate, ~ broom.mixed::tidy(.x) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error)))
         },
       error = function(e){
         print('Note: Mixed effect modeling to identify sources of confounding failed. Running a simple linear model instead. If you want to try this analysis yourself, you can access the raw data for this yourself in the output and follow the methodological layout in the docs.')
@@ -57,9 +58,11 @@ find_confounders_linear <- function(voe_list_for_reg){
     }
     if(trylinear==TRUE){
       tryCatch({
-        fit_estimate=stats::lm(data=voe_adjust_for_reg_ptype,stats::as.formula(estimate ~ . - estimate - dependent_feature - p.value))
+        
+        voe_adjust_for_reg_ptype_split = split(voe_adjust_for_reg_ptype,voe_adjust_for_reg_ptype$term)
+        fit_estimate = purrr::map(voe_adjust_for_reg_ptype_split, ~ stats::lm(data=.x %>% dplyr::select_if(~ length(unique(.)) > 1),stats::as.formula(estimate ~ . - estimate - dependent_feature - p.value)))
         fullmod=fit_estimate
-        fit_estimate_forplot=broom::tidy(fit_estimate) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error))
+        fit_estimate_forplot = purrr::map(fit_estimate, ~ broom::tidy(.x) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error)))
       },
       error = function(e){
         fit_estimate_forplot = 'Confounder analysis failed.'
@@ -71,9 +74,11 @@ find_confounders_linear <- function(voe_list_for_reg){
   else{
     tryCatch({
       print('Note: Using regular linear model for confounder analysis instead of a mixed effect one. See the GitHub README for more details.')
-      fit_estimate=stats::lm(data=voe_adjust_for_reg_ptype,stats::as.formula(estimate ~ . - estimate - p.value))
+      voe_adjust_for_reg_ptype_split = split(voe_adjust_for_reg_ptype,voe_adjust_for_reg_ptype$term)
+      fit_estimate = purrr::map(voe_adjust_for_reg_ptype_split, ~ stats::lm(data=.x %>% dplyr::select_if(~ length(unique(.)) > 1),stats::as.formula(estimate ~ . - estimate - p.value)))
       fullmod=fit_estimate
-      fit_estimate_forplot=broom::tidy(fit_estimate) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error))
+      fit_estimate_forplot = purrr::map(fit_estimate, ~ broom::tidy(.x) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error)))
+      
     },
     error = function(e){
       fit_estimate_forplot = 'Confounder analysis failed.'
@@ -95,12 +100,12 @@ summarize_vibration_data_by_feature <- function(df){
   p <- c(0.01,.5,.99)
   p_names <- purrr::map_chr(p, ~paste0('estimate_quantile_',.x*100, "%"))
   p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
-  model_counts = df %>% dplyr::count(.data$dependent_feature) %>% dplyr::rename(number_of_models=.data$n)
-  df_estimates = suppressMessages(df %>% dplyr::group_by(.data$dependent_feature) %>% dplyr::summarize_at(dplyr::vars(.data$estimate), tibble::lst(!!!p_funs)) %>% dplyr::mutate(estimate_diff_99_1 = .data$`estimate_quantile_99%`-.data$`estimate_quantile_1%`,janus_effect=df %>% dplyr::group_by(.data$dependent_feature) %>% dplyr::summarise(janus_effect = sum(.data$estimate > 0, na.rm = TRUE)/sum(is.finite(.data$estimate), na.rm = TRUE)) %>% dplyr::ungroup() %>% dplyr::select(.data$janus_effect) %>% unname %>% unlist))
+  model_counts = df %>% group_by(dependent_feature,term) %>% dplyr::count(.data$dependent_feature) %>% dplyr::rename(number_of_models=.data$n) %>% ungroup()
+  df_estimates = suppressMessages(df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% dplyr::summarize_at(dplyr::vars(.data$estimate), tibble::lst(!!!p_funs)) %>% dplyr::mutate(estimate_diff_99_1 = .data$`estimate_quantile_99%`-.data$`estimate_quantile_1%`,janus_effect=df %>% dplyr::group_by(.data$dependent_feature) %>% dplyr::summarise(janus_effect = sum(.data$estimate > 0, na.rm = TRUE)/sum(is.finite(.data$estimate), na.rm = TRUE)) %>% dplyr::ungroup() %>% dplyr::select(.data$janus_effect) %>% unname %>% unlist)) %>% ungroup()
   p_names <- purrr::map_chr(p, ~paste0('pval_quantile_',.x*100, "%"))
   p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
-  df_pval = df %>% dplyr::group_by(.data$dependent_feature) %>% dplyr::summarize_at(dplyr::vars(.data$p.value), tibble::lst(!!!p_funs)) %>% dplyr::mutate(pvalue_diff_99_1 = .data$`pval_quantile_99%`-.data$`pval_quantile_1%`)
-  summarized_voe_data=dplyr::bind_cols(model_counts, df_estimates %>% dplyr::select(-.data$dependent_feature),df_pval %>% dplyr::select(-.data$dependent_feature))
+  df_pval = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% dplyr::summarize_at(dplyr::vars(.data$p.value), tibble::lst(!!!p_funs)) %>% dplyr::mutate(pvalue_diff_99_1 = .data$`pval_quantile_99%`-.data$`pval_quantile_1%`) %>% ungroup()
+  summarized_voe_data=dplyr::bind_cols(model_counts, df_estimates %>% dplyr::select(-c(dependent_feature,term)),df_pval %>% dplyr::select(-c(dependent_feature,term)))
   return(summarized_voe_data)
 }
 
