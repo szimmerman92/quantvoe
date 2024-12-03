@@ -116,7 +116,19 @@ summarize_vibration_data_by_feature <- function(df){
   p_names <- purrr::map_chr(p, ~paste0('estimate_quantile_',.x*100, "%"))
   p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
   model_counts = df %>% group_by(dependent_feature,term) %>% dplyr::count(.data$dependent_feature) %>% dplyr::rename(number_of_models=.data$n) %>% ungroup()
-  df_estimates = suppressMessages(df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% dplyr::summarize_at(dplyr::vars(.data$estimate), tibble::lst(!!!p_funs)) %>% dplyr::mutate(estimate_diff_99_1 = .data$`estimate_quantile_99%`-.data$`estimate_quantile_1%`,janus_effect=df %>% dplyr::group_by(.data$dependent_feature) %>% dplyr::summarise(janus_effect = sum(.data$estimate > 0, na.rm = TRUE)/sum(is.finite(.data$estimate), na.rm = TRUE)) %>% dplyr::ungroup() %>% dplyr::select(.data$janus_effect) %>% unname %>% unlist)) %>% ungroup()
+
+  janus_effect = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% 
+  dplyr::summarise(janus_effect = sum(.data$estimate > 0, na.rm = TRUE)/sum(is.finite(.data$estimate), na.rm = TRUE)) %>% dplyr::ungroup()
+
+
+  df_estimates = suppressMessages(df %>% 
+                                  dplyr::group_by(.data$dependent_feature,.data$term) %>%
+                                  dplyr::summarize_at(dplyr::vars(.data$estimate), tibble::lst(!!!p_funs)) %>%
+                                  dplyr::mutate(estimate_diff_99_1 = .data$`estimate_quantile_99%`-.data$`estimate_quantile_1%`))%>% ungroup()
+
+  df_estimates = merge(df_estimates,janus_effect)
+
+
   p_names <- purrr::map_chr(p, ~paste0('pval_quantile_',.x*100, "%"))
   p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
   df_pval = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% dplyr::summarize_at(dplyr::vars(.data$p.value), tibble::lst(!!!p_funs)) %>% dplyr::mutate(pvalue_diff_99_1 = .data$`pval_quantile_99%`-.data$`pval_quantile_1%`) %>% ungroup()
