@@ -69,7 +69,7 @@ find_confounders_linear <- function(voe_list_for_reg){
           fit_estimate = purrr::map(voe_adjust_for_reg_ptype_split, ~ stats::lm(data=.x %>% dplyr::select_if(~ length(unique(.)) > 1),stats::as.formula(estimate ~ . - estimate - dependent_feature - p.value)))
           fullmod=fit_estimate
           fit_estimate_forplot = purrr::map(fit_estimate, ~ broom::tidy(.x) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error)))
-        else {
+        } else {
           fit_estimate=stats::lm(data=voe_adjust_for_reg_ptype,stats::as.formula(estimate ~ . - estimate - dependent_feature - p.value))
           fullmod=fit_estimate
           fit_estimate_forplot=broom::tidy(fit_estimate) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error))
@@ -81,8 +81,7 @@ find_confounders_linear <- function(voe_list_for_reg){
         print('Confounder analysis failed. We recommend looking at the raw vibration output to see what the issue may be.')
       })
     }
-  }
-  else{
+  } else{
     tryCatch({
       print('Note: Using regular linear model for confounder analysis instead of a mixed effect one. See the GitHub README for more details.')
       if("term"%in% colnames(voe_adjust_for_reg_ptype)) {
@@ -90,7 +89,7 @@ find_confounders_linear <- function(voe_list_for_reg){
         fit_estimate = purrr::map(voe_adjust_for_reg_ptype_split, ~ stats::lm(data=.x %>% dplyr::select_if(~ length(unique(.)) > 1),stats::as.formula(estimate ~ . - estimate - p.value)))
         fullmod=fit_estimate
         fit_estimate_forplot = purrr::map(fit_estimate, ~ broom::tidy(.x) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error)))
-      else {
+      } else {
         fit_estimate=stats::lm(data=voe_adjust_for_reg_ptype,stats::as.formula(estimate ~ . - estimate - p.value))
         fullmod=fit_estimate
         fit_estimate_forplot=broom::tidy(fit_estimate) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error))
