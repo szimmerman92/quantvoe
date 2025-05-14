@@ -130,22 +130,24 @@ find_confounders_linear <- function(voe_list_for_reg){
 #' @importFrom rlang .data
 #' @importFrom magrittr "%>%"
 summarize_vibration_data_by_feature_termplot <- function(df,center_for_effect_size){
-  summarized_voe_data <- df %>% group_by(independent_feature,dependent_feature,x) %>%
-    summarise(estimate_quantile_1 = quantile(effect_size, probs = 0.01)
-              , estimate_quantile_50 = quantile(effect_size, probs = 0.5)
-              , estimate_quantile_99 = quantile(effect_size, probs = 0.99)
+  # View(df)
+  summarized_voe_data <- df %>% 
+    group_by(independent_feature,dependent_feature,x) %>%
+    summarise(estimate_quantile_1 = quantile(effect_size, probs = 0.01, na.rm = TRUE)
+              , estimate_quantile_50 = quantile(effect_size, probs = 0.5, na.rm = TRUE)
+              , estimate_quantile_99 = quantile(effect_size, probs = 0.99, na.rm = TRUE)
               , estimate_diff_99_1 = estimate_quantile_99 - estimate_quantile_1
               , num_models = sum(!is.na(effect_size))
               , janus_effect = sum(effect_size>center_for_effect_size,na.rm=TRUE)/num_models
-              , pval_quantile_1 = quantile(p.value, probs = 0.01)
-              , pval_quantile_50 = quantile(p.value, probs = 0.5)
-              , pval_quantile_99 = quantile(p.value, probs = 0.99)
+              , pval_quantile_1 = quantile(p.value, probs = 0.01, na.rm = TRUE)
+              , pval_quantile_50 = quantile(p.value, probs = 0.5, na.rm = TRUE)
+              , pval_quantile_99 = quantile(p.value, probs = 0.99, na.rm = TRUE)
               , pvalue_diff_99_1 = pval_quantile_99 - pval_quantile_1
-              , estimate_mean_over_vibration = mean(effect_size)
-              , estimate_ci_lower_over_vibration = mean(effect_size_ci_lower)
-              , estimate_ci_upper_over_vibration = mean(effect_size_ci_upper)
-              , estimate_se_over_vibration = (mean(ci_upper_y) - mean(ci_lower_y))/(2*1.96)
-              , t_statistic_estimate_over_vibration = mean(y_centered)/estimate_se_over_vibration
+              , estimate_mean_over_vibration = mean(effect_size, na.rm = TRUE)
+              , estimate_ci_lower_over_vibration = mean(effect_size_ci_lower, na.rm = TRUE)
+              , estimate_ci_upper_over_vibration = mean(effect_size_ci_upper, na.rm = TRUE)
+              , estimate_se_over_vibration = (mean(ci_upper_y, na.rm = TRUE) - mean(ci_lower_y, na.rm = TRUE))/(2*1.96)
+              , t_statistic_estimate_over_vibration = mean(y_centered, na.rm = TRUE)/estimate_se_over_vibration
               , crosses_the_center = ifelse(center_for_effect_size > estimate_ci_lower_over_vibration 
                                             & center_for_effect_size < estimate_ci_upper_over_vibration
                                             , "yes"
@@ -282,15 +284,21 @@ summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
 #' @export
 analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size){
   voe_annotated =get_adjuster_expanded_vibrations(vibration_output[[1]], vibration_output[[2]],constant_adjusters)
+  # View(voe_annotated)
   voe_unnested_annotated = filter_unnest_feature_vib(voe_annotated) %>% dplyr::select(-.data$vars)
+  # View(voe_unnested_annotated)
+  # View(voe_annotated$termplot_fit)
   voe_termplot_unnested = voe_annotated %>% 
     dplyr::slice(which(purrr::map_lgl(voe_annotated$termplot_fit, ~class(.)[[1]] == "data.frame"))) %>% 
     tidyr::unnest(.data$termplot_fit) %>% 
     dplyr::select(-c(vars, full_fits, feature_fit))
+  # View(voe_termplot_unnested)
+  # print("analyze voe data")
   
   if(length(num_knots) > 1 | num_knots[1] > 0) {
     summarized = summarize_vibration_data_by_feature_termplot(df=voe_termplot_unnested,center_for_effect_size=center_for_effect_size)
   } else {
+    # print("Here!")
     #summarized = summarize_vibration_data_by_feature(voe_unnested_annotated,center_for_effect_size)
     summarized = summarize_vibration_data_by_feature_termplot(df=voe_termplot_unnested,center_for_effect_size=center_for_effect_size)
   }

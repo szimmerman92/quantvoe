@@ -57,7 +57,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
   # if dependent variable is of type surival.
   if(class(merged_data[[feature]])[1]=="Surv" & model_type != "survey") { 
     # we will do cox regression
-    
+    # print("survival in vibrate")
     tibble_out = tibble::tibble(
       dependent_feature = feature,
       independent_feature = primary_variable,
@@ -79,11 +79,13 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
                                                                           unname
                                                                         , data = regression_df)
                                                         # , warning = function(w) w
-                                                        , error = function(e) e)),
+                                                        , error = function(e) e)
+                             , .progress = TRUE),
       #feature_fit = purrr::map(.data$full_fits, function(x) tryCatch(broom::tidy(x) %>% dplyr::filter(., grepl(primary_variable,.data$term)),warning = function(w) w,error = function(e) e)),
 
     )
       }
+  # View(tibble_out)
   
   if(model_type=='negative_binomial'){
     tibble_out = tibble::tibble(
@@ -92,7 +94,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
       dataset_id = dataset_id,
       vars = varset,
-      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),weights=regression_df %>% dplyr::select(tidyselect::all_of(weights)) %>% unlist %>% unname,data = regression_df),warning = function(w) w, error = function(e) e))
+      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),weights=regression_df %>% dplyr::select(tidyselect::all_of(weights)) %>% unlist %>% unname,data = regression_df),warning = function(w) w, error = function(e) e), .progress = TRUE)
       )
     
   }
@@ -106,7 +108,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
         dataset_id = dataset_id,
         vars = varset,
-        full_fits = purrr::map(wars, function(y) tryCatch(survey::svycoxph(formula=stats::as.formula(paste(feature," ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),design=dsn),warning = function(w) w, error = function(e) e)),
+        full_fits = purrr::map(wars, function(y) tryCatch(survey::svycoxph(formula=stats::as.formula(paste(feature," ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),design=dsn),warning = function(w) w, error = function(e) e), .progress = TRUE),
          )
     } else {
       tibble_out = tibble::tibble(
@@ -115,7 +117,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
         dataset_id = dataset_id,
         vars = varset,
-        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),design=dsn),warning = function(w) w, error = function(e) e))
+        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),design=dsn),warning = function(w) w, error = function(e) e), .progress = TRUE)
          )
     }
   }
@@ -126,7 +128,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
       dataset_id = dataset_id,
       vars = varset,
-      full_fits = purrr::map(vars, function(y) tryCatch(stats::glm(formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),weights=regression_df %>% dplyr::select(tidyselect::all_of(weights)) %>% unlist %>% unname,family=family,data = regression_df),warning = function(w) w, error = function(e) e))
+      full_fits = purrr::map(vars, function(y) tryCatch(stats::glm(formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),weights=regression_df %>% dplyr::select(tidyselect::all_of(weights)) %>% unlist %>% unname,family=family,data = regression_df),warning = function(w) w, error = function(e) e), .progress = TRUE)
       )
     
   }
@@ -135,10 +137,13 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
   predict_for_primary_variable <- function(regression_model, primary_variable,feature,quantile_bounds)
   {
     df_predicted_risk_primary_variable <- termplot(regression_model, se = TRUE, plot = FALSE)[[primary_variable]]
-   
+   # View(df_predicted_risk_primary_variable)
+    # print(is.null(quantile_bounds))
     if(is.null(quantile_bounds) == TRUE)
     {
+      # print("compute vibrations")
       min_primary_variable = min(df_predicted_risk_primary_variable$x, na.rm = TRUE)
+      # print(min_primary_variable)
       center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
       # View(summary(regression_model))
       degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
@@ -151,14 +156,16 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         mutate(primary_variable_name=primary_variable) %>% 
         mutate(feature=feature)
     } else {
-      
+      # print("in novemtiles termplots")
       lower_bound_quantiles <- quantile_bounds[1:length(quantile_bounds) - 1]
       upper_bound_quantiles <- quantile_bounds[2:length(quantile_bounds)]
       
       min_primary_variable <- "_1"
       center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
+      # print(center)
       # View(summary(regression_model))
       degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
+      # View(degree_of_freedom)
       df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
         mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
         mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
@@ -166,9 +173,11 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         mutate(ci_lower_y = y_centered - 1.96*se) %>%
         mutate(ci_upper_y = y_centered + 1.96*se) %>%
         mutate(statistic = (y_centered/se)) %>%
-        mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
-        mutate(primary_variable_name=primary_variable) %>% 
-        mutate(feature=feature_name)
+        mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>%
+        mutate(primary_variable_name=primary_variable) %>%
+        mutate(feature=feature)
+     # print("end of novemtiles termplots")
+      # View(df_predicted_risk_primary_variable)
     }
     
     
@@ -185,7 +194,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
                , effect_size_ci_lower = ci_lower_y
                , effect_size_ci_upper = ci_upper_y)
     }
-    
+    # View(df_predicted_risk_primary_variable)
     return(df_predicted_risk_primary_variable)
   }
   
@@ -195,7 +204,8 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
                                                               # ,warning = function(w) w
                                                               ,error = function(e) e))
   
-  
+  # print("Here")
+  # View(tibble_out$termplot_fit)
   return(tibble_out)
 }
 
@@ -223,6 +233,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
 #' @importFrom dplyr %>%
 #' @keywords regression, initial association
 dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_type,features_of_interest,max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds){
+  # print("Here!")
   print(paste('Computing',max_vibration_num,'vibrations for',length(features_of_interest),'feature(s) in dataset number',subframe[[3]]))
   dep_sub = subframe[[1]]
   in_sub = subframe[[2]]
@@ -233,10 +244,12 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
   if(length(todrop)>1){
     in_sub=in_sub %>% dplyr::select(-tidyselect::all_of(todrop))
   }
+
   features_of_interest = intersect(features_of_interest,colnames(dep_sub))
   dep_sub = dep_sub %>% dplyr::select(.data$sampleID,c(features_of_interest))
   variables_to_vibrate=colnames(in_sub %>% dplyr::select(-c(.data$sampleID,tidyselect::all_of(constant_adjusters),tidyselect::all_of(strata),tidyselect::all_of(weights),tidyselect::all_of(ids),tidyselect::all_of(primary_variable))))
   merged_data=suppressMessages(dplyr::left_join(in_sub, dep_sub))
+
   if(as.integer(cores)>1){
     options(future.globals.maxSize = +Inf)
     future::plan(future::multisession, workers = as.integer(cores))
@@ -246,6 +259,7 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
     output = purrr::map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
 
   }
+  # print("Vibration finished")
   dplyr::bind_rows(output)
 }
 
@@ -276,6 +290,7 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
 compute_vibrations <- function(bound_data,primary_variable,constant_adjusters = NULL,model_type = 'glm',features_of_interest,max_vibration_num = 10000,proportion_cutoff = 1,cores = 1,max_vars_in_model = 20,family = gaussian(),ids = NULL,strata = NULL,weights = NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds){
   output = dplyr::bind_rows(apply(bound_data, 1, function(subframe) dataset_vibration(subframe, primary_variable,constant_adjusters,model_type ,features_of_interest,max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds)))
   output = output %>% dplyr::filter(!is.na(.data$dependent_feature))
+  # View(output)
   vibration_variables = unique(unlist(unname(apply(bound_data, 1, function(subframe) subframe[[2]] %>% dplyr::select(-.data$sampleID,-primary_variable) %>% colnames))))
   return(list('vibration_output'=output,'vibration_variables'=vibration_variables))
 }

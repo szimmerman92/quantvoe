@@ -101,6 +101,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   
   if(is.null(quantile_bounds) == TRUE)
   {
+    # print("is.null(quantile_bounds)")
     min_primary_variable = min(df_predicted_risk_primary_variable$x, na.rm = TRUE)
     center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
     # View(summary(regression_model))
@@ -255,6 +256,7 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
 #' @export
 compute_initial_associations <- function(bound_data,primary_variable, constant_adjusters = NULL,model_type = 'glm', proportion_cutoff = 1,vibrate = TRUE,family = gaussian(),ids = NULL,strata =NULL,weights =NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds){
   output = apply(bound_data, 1, function(x) run_associations(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
+  # View(output)
   output_regs = purrr::map(output, function(x) x[[1]])
   output_vib = unlist(unname(unique(purrr::map(output, function(x) x[[2]]))))
   output_term = purrr::map(output, function(x) x[[3]])
