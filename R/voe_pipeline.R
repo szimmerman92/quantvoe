@@ -22,11 +22,14 @@
 #' @param confounder_analysis Run confounder analysis (default=TRUE).
 #' @param cores Number of cores to be used (default = 1)
 #' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
+#' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","ns")
+#' @param center_for_effect_size determines how to calculate janus effect. 0 if values are linear, 1 if values are hazard ratio or risk ratios or fold differences 
+#' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
 #' @importFrom dplyr "%>%"
 #' @importFrom rlang .data
 #' @keywords pipeline
 #' @export
-full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,initial_regression_independent_vars=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0){
+full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,initial_regression_independent_vars=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0, spline_type=NULL,center_for_effect_size,quantile_bounds){
   output_to_return = list()
   if(inherits(dependent_variables, "list")==TRUE){
     print('Identified multiple input datasets, preparing to run meta-analysis.')
@@ -35,8 +38,7 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     if(meta_analysis==FALSE){
       return(print('The meta_analysis variable is set to FALSE, but you appear to have passed multiple datasets. Please switch it to TRUE, and/or adjust other parameters as needed, and try again. For more information, please see the documentation.'))
     }
-  }
-  else{
+  } else{
     bound_data = dplyr::tibble(dependent_variables=list(dependent_variables),independent_variables=list(independent_variables),dsid=1)
   }
   output_to_return[['original_data']] = bound_data
@@ -45,18 +47,19 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
   if(passed==TRUE){
     Sys.sleep(2)
     print('Deploying initial associations')
-    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters=initial_regression_independent_vars,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots)
+    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters=initial_regression_independent_vars,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots,spline_type,quantile_bounds)
     output_to_return[['initial_association_output']] = association_output_full[['output']]
+    output_to_return[['initial_termplot']] = association_output_full[['termplot']]
     vibrate=association_output_full[['vibrate']]
     association_output=association_output_full[['output']]
+    
     if(meta_analysis == TRUE){
       metaanalysis <- compute_metaanalysis(association_output)
       metaanalysis_cleaned <- clean_metaanalysis(metaanalysis,dataset_num)
       output_to_return[['meta_analyis_output']] = metaanalysis_cleaned
-      features_of_interest = metaanalysis_cleaned %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::select(.data$feature) %>% unique
-    }
-    else{
-      features_of_interest = association_output %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::select(.data$feature) %>% unique
+      features_of_interest = metaanalysis_cleaned %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
+    } else{
+      features_of_interest = association_output %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
     }
     if(length(unlist(unname(features_of_interest)))==0){
       print('No significant features found, consider adjusting parameters or data and trying again.')
@@ -64,10 +67,10 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     }
     if(vibrate==TRUE){
       output_to_return[['features_to_vibrate_over']] = features_of_interest
-      vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest,num_knots)
+      vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest,num_knots,spline_type,quantile_bounds)
       output_to_return[['vibration_variables']] = vibration_output[[2]]
       if(confounder_analysis==TRUE){
-        analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters)
+        analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size)
         output_to_return[['vibration_output']] = analyzed_voe_data
       }
       else{

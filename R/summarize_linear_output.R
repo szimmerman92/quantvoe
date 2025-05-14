@@ -41,7 +41,7 @@ get_adjuster_expanded_vibrations <- function(voe_df, adjusters, constant_adjuste
 find_confounders_linear <- function(voe_list_for_reg){
   trylinear=FALSE
   ptype=unique(voe_list_for_reg$term)
-  voe_adjust_for_reg_ptype <- voe_list_for_reg %>% dplyr::select(-.data$dataset_id,-.data$independent_feature) %>% dplyr::select_if(~ length(unique(.)) > 1) %>% dplyr::select(-c(.data$full_fits,.data$std.error,.data$statistic))
+  voe_adjust_for_reg_ptype <- voe_list_for_reg %>% dplyr::select(-.data$dataset_id,-.data$independent_feature) %>% dplyr::select_if(~ length(unique(.)) > 1) %>% dplyr::select(-c(.data$full_fits,.data$std.error,.data$statistic,.data$termplot_fit))
   voe_adjust_for_reg_ptype$estimate = abs(voe_adjust_for_reg_ptype$estimate)
   if('dependent_feature' %in% colnames(voe_adjust_for_reg_ptype)){ 
     if(!(1 %in% unique(unlist(unname(table(voe_adjust_for_reg_ptype$dependent_feature)))))){
@@ -85,8 +85,24 @@ find_confounders_linear <- function(voe_list_for_reg){
     tryCatch({
       print('Note: Using regular linear model for confounder analysis instead of a mixed effect one. See the GitHub README for more details.')
       if("term"%in% colnames(voe_adjust_for_reg_ptype)) {
-        voe_adjust_for_reg_ptype_split = split(voe_adjust_for_reg_ptype,voe_adjust_for_reg_ptype$term)
-        fit_estimate = purrr::map(voe_adjust_for_reg_ptype_split, ~ stats::lm(data=.x %>% dplyr::select_if(~ length(unique(.)) > 1),stats::as.formula(estimate ~ . - estimate - p.value)))
+        voe_adjust_for_reg_ptype_split = split(voe_adjust_for_reg_ptype
+                                               , voe_adjust_for_reg_ptype$term)
+        
+        fit_estimate = lapply(voe_adjust_for_reg_ptype_split
+                              , function(term_df) {
+                                term_df = term_df[,-1]
+                                if(length(unique(term_df))>1 
+                                   & sum(!is.na(term_df$estimate)) > 0) 
+                                {
+                                  fit_res_temp = lm(estimate ~ . - estimate - p.value,data = term_df) 
+                                }
+                                })
+        fit_estimate = fit_estimate[!sapply(fit_estimate, is.null)]
+        # fit_estimate = purrr::map(voe_adjust_for_reg_ptype_split
+        #                           , ~ stats::lm(data=.x %>% 
+        #                                           dplyr::select_if(~ (length(unique(.)) > 1 & sum(!is.na(.$estimate)) > 0))
+        #                                         ,stats::as.formula(estimate ~ . - estimate - p.value)))
+   
         fullmod=fit_estimate
         fit_estimate_forplot = purrr::map(fit_estimate, ~ broom::tidy(.x) %>% dplyr::mutate(sdmin=(.data$estimate - .data$std.error),sdmax=(.data$estimate + .data$std.error)))
       } else {
@@ -104,35 +120,150 @@ find_confounders_linear <- function(voe_list_for_reg){
   return(list(summarized_output = fit_estimate_forplot, full_model = fullmod))
 }
 
+#' summarize_vibration_data_by_feature_termplot
+#'
+#' Summarize output of vibrations for each dependent feature of interest for non linear voe.
+#' @param df A dataframe of expanded VoE output (output of filter_unnest_feature_vib)
+#' @param center_for_effect_size determines how to calculate janus effect. 0 if values are linear, 1 if values are hazard ratio or risk ratios or fold differences 
+
+#' @keywords voe analysis
+#' @importFrom rlang .data
+#' @importFrom magrittr "%>%"
+summarize_vibration_data_by_feature_termplot <- function(df,center_for_effect_size){
+  summarized_voe_data <- df %>% group_by(independent_feature,dependent_feature,x) %>%
+    summarise(estimate_quantile_1 = quantile(effect_size, probs = 0.01)
+              , estimate_quantile_50 = quantile(effect_size, probs = 0.5)
+              , estimate_quantile_99 = quantile(effect_size, probs = 0.99)
+              , estimate_diff_99_1 = estimate_quantile_99 - estimate_quantile_1
+              , num_models = sum(!is.na(effect_size))
+              , janus_effect = sum(effect_size>center_for_effect_size,na.rm=TRUE)/num_models
+              , pval_quantile_1 = quantile(p.value, probs = 0.01)
+              , pval_quantile_50 = quantile(p.value, probs = 0.5)
+              , pval_quantile_99 = quantile(p.value, probs = 0.99)
+              , pvalue_diff_99_1 = pval_quantile_99 - pval_quantile_1
+              , estimate_mean_over_vibration = mean(effect_size)
+              , estimate_ci_lower_over_vibration = mean(effect_size_ci_lower)
+              , estimate_ci_upper_over_vibration = mean(effect_size_ci_upper)
+              , estimate_se_over_vibration = (mean(ci_upper_y) - mean(ci_lower_y))/(2*1.96)
+              , t_statistic_estimate_over_vibration = mean(y_centered)/estimate_se_over_vibration
+              , crosses_the_center = ifelse(center_for_effect_size > estimate_ci_lower_over_vibration 
+                                            & center_for_effect_size < estimate_ci_upper_over_vibration
+                                            , "yes"
+                                            , "no")
+              # , p.value_over_vibration = 2*pt(q = (t_statistic_estimate_over_vibration)
+              #                                 , df = num_models - 1)
+              , p.value_over_vibration =  exp(-0.717*(abs(t_statistic_estimate_over_vibration)) - 0.416*abs(t_statistic_estimate_over_vibration)^2)
+              # , exact_results = fisher.test(x=factor(as.numeric(effect_size>center_for_effect_size),levels=c(0,1))
+              #                               , y=factor(as.numeric(p.value < 0.05),levels=c(0,1)))$p.value
+              ) %>%
+    ungroup(.)
+  
+  if("lower_bound_quantiles" %in% colnames(df)) {
+    summarized_voe_data = merge(summarized_voe_data
+                                , df %>% 
+                                  select(x,lower_bound_quantiles,upper_bound_quantiles) %>%
+                                  unique(.)
+                                , by="x")
+  }
+  
+    # contigency_table = df %>% group_by(independent_feature,dependent_feature,x) %>%
+    #   summarise(exact_results = fisher.test(x=factor(effect_size>center_for_effect_size,levels=c(0,1)), y=factor(p.value < 0.05,levels=c(0,1)))$p.value)
+    # 
+    # contigency_table = df %>% group_by(independent_feature,dependent_feature,x) %>%
+    #   summarise(above_center_sig = sum(effect_size>center_for_effect_size & p.value < 0.05,na.rm=TRUE),
+    #             above_center_not_sig = sum(effect_size>center_for_effect_size & p.value >= 0.05,na.rm=TRUE),
+    #             below_center_sig = sum(effect_size<center_for_effect_size & p.value < 0.05,na.rm=TRUE),
+    #             below_center_not_sig = sum(effect_size<center_for_effect_size & p.value >= 0.05,na.rm=TRUE))
+    # 
+    # contigency_table$percent_sig_above_center = (contigency_table$above_center_sig/(contigency_table$above_center_sig+contigency_table$above_center_not_sig)) * 100
+    # contigency_table$percent_sig_below_center = (contigency_table$below_center_sig/(contigency_table$below_center_sig+contigency_table$below_center_not_sig)) * 100
+    # contigency_table$percent_sig_above_center[is.na(contigency_table$percent_sig_above_center)] = 0
+    # contigency_table$percent_sig_below_center[is.na(contigency_table$percent_sig_below_center)] = 0
+    # 
+    # exact_res = apply(contigency_table, 1, function(counts) {
+    #   temp_df = data.frame(above_center=c(counts["above_center_sig"],counts["above_center_not_sig"]),below_center=c(counts["below_center_sig"],counts["below_center_not_sig"]))
+    #   temp_df$above_center = as.numeric(temp_df$above_center)
+    #   temp_df$below_center = as.numeric(temp_df$below_center)
+    #   rownames(temp_df) = c("sig","not sig")
+    #   fishers_res = fisher.test(temp_df,alternative="two.sided",conf.int=TRUE)
+    #   pvalue = fishers_res$p.value
+    #   effect_size = fishers_res$estimate
+    #   confidence_interval_lower = fishers_res$conf.int[1]
+    #   confidence_interval_upper = fishers_res$conf.int[2]
+    #   return(c(pvalue,effect_size,confidence_interval_lower,confidence_interval_upper))
+    # })
+    # exact_res = t(exact_res)
+    # colnames(exact_res) = c("pvalue","effect_size","confidence_interval_lower","confidence_interval_upper")
+    # exact_res = as.data.frame(exact_res)
+    # # do some basic checks because sometimes p-values are incorrect if we lack variability
+    # exact_res$pvalue[rowSums(contigency_table[,c("above_center_sig","below_center_sig")])==0] = 1
+    # exact_res$pvalue[(contigency_table$percent_sig_above_center == 100 & contigency_table$percent_sig_below_center == 0) |
+    #                    (contigency_table$percent_sig_below_center == 100 & contigency_table$percent_sig_above_center == 0)] = 0
+    # contigency_table = cbind(contigency_table,exact_res)
+  return(summarized_voe_data)
+}
+  
 #' summarize_vibration_data_by_feature
 #'
 #' Summarize output of vibrations for each dependent feature of interest.
 #' @param df A dataframe of expanded VoE output (output of filter_unnest_feature_vib)
+#' @param center_for_effect_size determines how to calculate janus effect. 0 if values are linear, 1 if values are hazard ratio or risk ratios or fold differences 
 #' @keywords voe analysis
 #' @importFrom rlang .data
 #' @importFrom magrittr "%>%"
-summarize_vibration_data_by_feature <- function(df){
-  p <- c(0.01,.5,.99)
-  p_names <- purrr::map_chr(p, ~paste0('estimate_quantile_',.x*100, "%"))
-  p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
-  model_counts = df %>% group_by(dependent_feature,term) %>% dplyr::count(.data$dependent_feature) %>% dplyr::rename(number_of_models=.data$n) %>% ungroup()
-
-  janus_effect = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% 
-  dplyr::summarise(janus_effect = sum(.data$estimate > 0, na.rm = TRUE)/sum(is.finite(.data$estimate), na.rm = TRUE)) %>% dplyr::ungroup()
-
-
-  df_estimates = suppressMessages(df %>% 
-                                  dplyr::group_by(.data$dependent_feature,.data$term) %>%
-                                  dplyr::summarize_at(dplyr::vars(.data$estimate), tibble::lst(!!!p_funs)) %>%
-                                  dplyr::mutate(estimate_diff_99_1 = .data$`estimate_quantile_99%`-.data$`estimate_quantile_1%`))%>% ungroup()
-
-  df_estimates = merge(df_estimates,janus_effect)
-
-
-  p_names <- purrr::map_chr(p, ~paste0('pval_quantile_',.x*100, "%"))
-  p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
-  df_pval = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% dplyr::summarize_at(dplyr::vars(.data$p.value), tibble::lst(!!!p_funs)) %>% dplyr::mutate(pvalue_diff_99_1 = .data$`pval_quantile_99%`-.data$`pval_quantile_1%`) %>% ungroup()
-  summarized_voe_data=dplyr::bind_cols(model_counts, df_estimates %>% dplyr::select(-c(dependent_feature,term)),df_pval %>% dplyr::select(-c(dependent_feature,term)))
+summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
+  # p <- c(0.01,.5,.99)
+  # p_names <- purrr::map_chr(p, ~paste0('estimate_quantile_',.x*100, "%"))
+  # p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
+  # model_counts = df %>% group_by(dependent_feature,term) %>% dplyr::count(.data$dependent_feature) %>% dplyr::rename(number_of_models=.data$n) %>% ungroup()
+  # 
+  # janus_effect = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% 
+  # dplyr::summarise(janus_effect = sum(.data$estimate > center_for_effect_size, na.rm = TRUE)/sum(is.finite(.data$estimate), na.rm = TRUE)) %>% dplyr::ungroup()
+  # 
+  # 
+  # df_estimates = suppressMessages(df %>% 
+  #                                 dplyr::group_by(.data$dependent_feature,.data$term) %>%
+  #                                 dplyr::summarize_at(dplyr::vars(.data$estimate), tibble::lst(!!!p_funs)) %>%
+  #                                 dplyr::mutate(estimate_diff_99_1 = .data$`estimate_quantile_99%`-.data$`estimate_quantile_1%`))%>% ungroup()
+  # 
+  # df_estimates = merge(df_estimates,janus_effect)
+  # 
+  # 
+  # p_names <- purrr::map_chr(p, ~paste0('pval_quantile_',.x*100, "%"))
+  # p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
+  # df_pval = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% dplyr::summarize_at(dplyr::vars(.data$p.value), tibble::lst(!!!p_funs)) %>% dplyr::mutate(pvalue_diff_99_1 = .data$`pval_quantile_99%`-.data$`pval_quantile_1%`) %>% ungroup()
+  # summarized_voe_data=dplyr::bind_cols(model_counts, df_estimates %>% dplyr::select(-c(dependent_feature,term)),df_pval %>% dplyr::select(-c(dependent_feature,term)))
+  print(colnames(df))
+  summarized_voe_data <- df %>% 
+    group_by(dependent_feature
+             , term) %>%
+    summarise(estimate_quantile_1 = quantile(estimate, probs = 0.01)
+              , estimate_quantile_50 = quantile(effect_size, probs = 0.5)
+              , estimate_quantile_99 = quantile(effect_size, probs = 0.99)
+              , estimate_diff_99_1 = estimate_quantile_99 - estimate_quantile_1
+              , num_models = sum(!is.na(effect_size))
+              , janus_effect = sum(effect_size>center_for_effect_size,na.rm=TRUE)/num_models
+              , pval_quantile_1 = quantile(p.value, probs = 0.01)
+              , pval_quantile_50 = quantile(p.value, probs = 0.5)
+              , pval_quantile_99 = quantile(p.value, probs = 0.99)
+              , pvalue_diff_99_1 = pval_quantile_99 - pval_quantile_1
+              , estimate_mean_over_vibration = mean(effect_size)
+              , estimate_ci_lower_over_vibration = mean(effect_size_ci_lower)
+              , estimate_ci_upper_over_vibration = mean(effect_size_ci_upper)
+              , estimate_se_over_vibration = (mean(ci_upper_y) - mean(ci_lower_y))/(2*1.96)
+              , t_statistic_estimate_over_vibration = mean(y_centered)/estimate_se_over_vibration
+              , crosses_the_center = ifelse(center_for_effect_size > estimate_ci_lower_over_vibration 
+                                            & center_for_effect_size < estimate_ci_upper_over_vibration
+                                            , "yes"
+                                            , "no")
+              # , p.value_over_vibration = 2*pt(q = (t_statistic_estimate_over_vibration)
+              #                                 , df = num_models - 1)
+              , p.value_over_vibration =  exp(-0.717*(abs(t_statistic_estimate_over_vibration)) - 0.416*abs(t_statistic_estimate_over_vibration)^2)
+              # , exact_results = fisher.test(x=factor(as.numeric(effect_size>center_for_effect_size),levels=c(0,1))
+              #                               , y=factor(as.numeric(p.value < 0.05),levels=c(0,1)))$p.value
+    ) %>%
+    ungroup(.)
+  
   return(summarized_voe_data)
 }
 
@@ -143,23 +274,35 @@ summarize_vibration_data_by_feature <- function(df){
 #' @param vibration_output Output list from the compute vibrations function.
 #' @param confounder_analysis TRUE/FALSE -- run confounder analysis (default = TRUE).
 #' @param constant_adjusters A character vector (or just one string) corresponding to column names in your dataset to include in every vibration. (default = NULL)
+#' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
+#' @param center_for_effect_size determines how to calculate janus effect. 0 if values are linear, 1 if values are hazard ratio or risk ratios or fold differences 
 #' @keywords voe analysis
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @export
-analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjusters){
+analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size){
   voe_annotated =get_adjuster_expanded_vibrations(vibration_output[[1]], vibration_output[[2]],constant_adjusters)
   voe_unnested_annotated = filter_unnest_feature_vib(voe_annotated) %>% dplyr::select(-.data$vars)
-  summarized = summarize_vibration_data_by_feature(voe_unnested_annotated)
+  voe_termplot_unnested = voe_annotated %>% 
+    dplyr::slice(which(purrr::map_lgl(voe_annotated$termplot_fit, ~class(.)[[1]] == "data.frame"))) %>% 
+    tidyr::unnest(.data$termplot_fit) %>% 
+    dplyr::select(-c(vars, full_fits, feature_fit))
+  
+  if(length(num_knots) > 1 | num_knots[1] > 0) {
+    summarized = summarize_vibration_data_by_feature_termplot(df=voe_termplot_unnested,center_for_effect_size=center_for_effect_size)
+  } else {
+    #summarized = summarize_vibration_data_by_feature(voe_unnested_annotated,center_for_effect_size)
+    summarized = summarize_vibration_data_by_feature_termplot(df=voe_termplot_unnested,center_for_effect_size=center_for_effect_size)
+  }
   c_analysis='No confounder analysis completed.'
-  if(confounder_analysis==TRUE){
-    if(nrow(voe_unnested_annotated)>=10){
-      c_analysis = find_confounders_linear(voe_unnested_annotated)
-    }
-    else{
-      print('Skipping confounder analysis, as not enough vibrations (under 10) completed to make it worthwhile.') 
-    }
-  } 
-  return(list('summarized_vibration_output'= summarized,'confounder_analysis'=c_analysis,'data'=voe_unnested_annotated))
+  # if(confounder_analysis==TRUE & num_knots[1] == 0 & length(num_knots) == 1){ # NOTE! WE NEED TO DO THIS FOR NON LINEAR BUT NOT NOW
+  #   if(nrow(voe_unnested_annotated)>=10){
+  #     c_analysis = find_confounders_linear(voe_unnested_annotated)
+  #   }
+  #   else{
+  #     print('Skipping confounder analysis, as not enough vibrations (under 10) completed to make it worthwhile.') 
+  #   }
+  # } 
+  return(list('summarized_vibration_output'= summarized,'confounder_analysis'=c_analysis,'data'=voe_unnested_annotated,'termplot_data'=voe_termplot_unnested))
 }
 
