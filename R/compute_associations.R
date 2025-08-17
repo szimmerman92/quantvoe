@@ -29,7 +29,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   #final check to confirm ready for regressions
   
   if(length(num_knots) > 1 | num_knots[1] > 0) {
-
+    
     primary_variable_treated = paste("splines::", spline_type, "(",primary_variable,",knots=",ifelse(length(num_knots) >0, paste("c(", paste(num_knots,collapse=","), ")", sep = ""), num_knots),")",sep="") # add this code
     
   } else {
@@ -53,8 +53,8 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     # print(summary(regression_model))
     #return(broom::tidy(coxph(formula=myformula,weights=weights,data=regression_df)) %>% dplyr::mutate(feature=feature_name))
     #return(tryCatch(broom::tidy(coxph(formula=myformula,weights=weights,data=regression_df)) %>% dplyr::mutate(feature=feature_name),
-                   #warning = function(w) w,
-                    #error = function(e) e
+    #warning = function(w) w,
+    #error = function(e) e
     #))
   }
   
@@ -96,6 +96,8 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   
   
   df_predicted_risk_primary_variable <- termplot(regression_model, se = TRUE, plot = FALSE)[[primary_variable]]
+  # View(df_predicted_risk_primary_variable)
+  # print(quantile_bounds)
   
   data_type_primary_variable <- class(df_predicted_risk_primary_variable$x)
   
@@ -119,23 +121,32 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     lower_bound_quantiles <- quantile_bounds[1:length(quantile_bounds) - 1]
     upper_bound_quantiles <- quantile_bounds[2:length(quantile_bounds)]
     
+    df_bound_quantiles <- data.frame("x" = paste0("_"
+                                                 , seq(length(quantile_bounds) - 1))
+                                     , "lower_bound_quantiles" = lower_bound_quantiles
+                                     ,  "upper_bound_quantiles" = upper_bound_quantiles)
+    # print(df_bound_quantiles)
+    # print(" I MADE ITTTT")
     min_primary_variable <- "_1"
     center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
     # View(summary(regression_model))
     degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
+    # print(lower_bound_quantiles)
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
-      mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
+      left_join(.
+                , df_bound_quantiles
+                , by = "x") %>%
       mutate(y_centered = y - center) %>%
       mutate(ci_lower_y = y_centered - 1.96*se) %>%
       mutate(ci_upper_y = y_centered + 1.96*se) %>%
       mutate(statistic = (y_centered/se)) %>%
-      mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
-      mutate(primary_variable_name=primary_variable) %>% 
+      mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>%
+      mutate(primary_variable_name=primary_variable) %>%
       mutate(feature=feature_name)
+    # print(df_predicted_risk_primary_variable)
   }
   
- 
+  
   # View(df_predicted_risk_primary_variable)
   
   if(class(dependent_variables[[feature_name]])[1]=="Surv")
