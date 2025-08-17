@@ -156,7 +156,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         mutate(primary_variable_name=primary_variable) %>% 
         mutate(feature=feature)
     } else {
-      print("in novemtiles termplots")
+      #print("in novemtiles termplots")
       lower_bound_quantiles <- quantile_bounds[1:length(quantile_bounds) - 1]
       upper_bound_quantiles <- quantile_bounds[2:length(quantile_bounds)]
       
@@ -182,8 +182,8 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>%
         mutate(primary_variable_name=primary_variable) %>%
         mutate(feature=feature)
-      print("end of novemtiles termplots")
-      print(df_predicted_risk_primary_variable)
+      #print("end of novemtiles termplots")
+      #print(df_predicted_risk_primary_variable)
     }
     
     
