@@ -48,6 +48,10 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     Sys.sleep(2)
     print('Deploying initial associations')
     association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters=initial_regression_independent_vars,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots,spline_type,quantile_bounds)
+    if(is.null(association_output_full)) {
+      print("All models failed to converge.")
+      return(output_to_return)
+    }
     output_to_return[['initial_association_output']] = association_output_full[['output']]
     output_to_return[['initial_termplot']] = association_output_full[['termplot']]
     vibrate=association_output_full[['vibrate']]

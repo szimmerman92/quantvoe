@@ -49,8 +49,15 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     myformula = stats::as.formula(paste(feature_name, "~ ",primary_variable_formodel))
     # print(myformula)
     weights = regression_df %>% dplyr::select(weights) %>% unlist %>% unname
-    regression_model = tryCatch(coxph(formula=myformula,weights=weights,data=regression_df),
-                                error = function(e) NULL)
+    # regression_model = tryCatch(coxph(formula=myformula,weights=weights,data=regression_df),
+    #                             error = function(e) NULL)
+    regression_model = tryCatch({
+      coxph(formula = myformula, weights = weights, data = regression_df)
+    }, error = function(e) {
+      NULL
+    })
+
+    # return(regression_model)
     if(is.null(regression_model)) {
       return(NULL)
     }
@@ -117,7 +124,6 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   }
   # print(primary_variable)
   
-  
   df_predicted_risk_primary_variable <- termplot(regression_model, se = TRUE, plot = FALSE)[[primary_variable]]
   # View(df_predicted_risk_primary_variable)
   # print(quantile_bounds)
@@ -145,7 +151,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     upper_bound_quantiles <- quantile_bounds[2:length(quantile_bounds)]
     
     df_bound_quantiles <- data.frame("x" = paste0("_"
-                                                 , seq(length(quantile_bounds) - 1))
+                                                  , seq(length(quantile_bounds) - 1))
                                      , "lower_bound_quantiles" = lower_bound_quantiles
                                      ,  "upper_bound_quantiles" = upper_bound_quantiles)
     # print(df_bound_quantiles)
@@ -253,10 +259,11 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
     print(paste('Dropping',length(out)-length(out_success),'features with regressions that failed to converge.'))
   }
   if(length(out_success)==0){
-    print(paste("All of your regression output failed. Printing error messages to screen."))
-    Sys.sleep(3)
-    print(out)
-    quit()
+    #print(paste("All of your regression output failed. Printing error messages to screen."))
+    #Sys.sleep(3)
+    #print(out)
+    #quit()
+    return(NULL)
   }
   out_success_model_out = purrr::map(out_success, function(x) x[[1]])
   out_success_model_out_termplot = purrr::map(out_success, function(x) x[[2]])
@@ -290,6 +297,9 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
 #' @export
 compute_initial_associations <- function(bound_data,primary_variable, constant_adjusters = NULL,model_type = 'glm', proportion_cutoff = 1,vibrate = TRUE,family = gaussian(),ids = NULL,strata =NULL,weights =NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds){
   output = apply(bound_data, 1, function(x) run_associations(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
+  if(is.null(output)) {
+    return(NULL)
+  }
   # View(output)
   output_regs = purrr::map(output, function(x) x[[1]])
   output_vib = unlist(unname(unique(purrr::map(output, function(x) x[[2]]))))
