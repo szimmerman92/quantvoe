@@ -56,14 +56,23 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     output_to_return[['initial_termplot']] = association_output_full[['termplot']]
     vibrate=association_output_full[['vibrate']]
     association_output=association_output_full[['output']]
+    # View(association_output_full)
     
     if(meta_analysis == TRUE){
       metaanalysis <- compute_metaanalysis(association_output)
       metaanalysis_cleaned <- clean_metaanalysis(metaanalysis,dataset_num)
       output_to_return[['meta_analyis_output']] = metaanalysis_cleaned
-      features_of_interest = metaanalysis_cleaned %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
+      if(!is.null(fdr_cutoff)) {
+        features_of_interest = metaanalysis_cleaned %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
+      } else {
+        features_of_interest = metaanalysis_cleaned %>% dplyr::pull(feature) %>% unique
+      }
     } else{
-      features_of_interest = association_output %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
+      if(!is.null(fdr_cutoff)) {
+        features_of_interest = association_output %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
+      } else {
+        features_of_interest =  association_output %>% dplyr::pull(feature) %>% unique
+      }
     }
     if(length(unlist(unname(features_of_interest)))==0){
       print('No significant features found, consider adjusting parameters or data and trying again.')
