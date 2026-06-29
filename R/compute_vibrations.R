@@ -108,7 +108,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
         dataset_id = dataset_id,
         vars = varset,
-        full_fits = purrr::map(wars, function(y) tryCatch(survey::svycoxph(formula=stats::as.formula(paste(feature," ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),design=dsn),warning = function(w) w, error = function(e) e), .progress = TRUE),
+        full_fits = purrr::map(vars, function(y) tryCatch(survey::svycoxph(formula=stats::as.formula(paste(feature," ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),design=dsn),warning = function(w) w, error = function(e) e), .progress = TRUE),
       )
     } else {
       tibble_out = tibble::tibble(
