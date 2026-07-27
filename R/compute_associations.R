@@ -52,7 +52,18 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     myformula = stats::as.formula(paste(feature_name, "~ ",primary_variable_formodel))
     print(myformula)
     weights = regression_df %>% dplyr::select(weights) %>% unlist %>% unname
-    regression_model = coxph(formula=myformula,weights=weights,data=regression_df)
+    #regression_model = coxph(formula=myformula,weights=weights,data=regression_df)
+    
+    regression_model = tryCatch({
+      coxph(formula = myformula, weights = weights, data = regression_df)
+    }, error = function(e) {
+      NULL
+    })
+    
+    # return(regression_model)
+    if(is.null(regression_model)) {
+      return(NULL)
+    }
     # print(summary(regression_model))
     #return(broom::tidy(coxph(formula=myformula,weights=weights,data=regression_df)) %>% dplyr::mutate(feature=feature_name))
     #return(tryCatch(broom::tidy(coxph(formula=myformula,weights=weights,data=regression_df)) %>% dplyr::mutate(feature=feature_name),
@@ -63,7 +74,18 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   
   
   if(model_type=='negative_binomial'){
-    regression_model = MASS::glm.nb(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)
+    #regression_model = MASS::glm.nb(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)
+
+    regression_model = tryCatch({
+      MASS::glm.nb(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)
+    }, error = function(e) {
+      NULL
+    })
+    
+    # return(regression_model)
+    if(is.null(regression_model)) {
+      return(NULL)
+    }
     
     #return(tryCatch(broom::tidy(MASS::glm.nb(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)) %>% dplyr::mutate(feature=feature_name),
     #                warning = function(w) w, 
@@ -89,14 +111,37 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
       # To view the matrix with all variables in the regression formula along with the dummy columns for the categorical variables
       # View(model.matrix(myformula, regression_df))
  
-      regression_model = survey::svycoxph(formula=myformula,design=dsn)
+      #regression_model = survey::svycoxph(formula=myformula,design=dsn)
+      
+      regression_model = tryCatch({
+        survey::svycoxph(formula=myformula,design=dsn)
+      }, error = function(e) {
+        NULL
+      })
+      
+      # return(regression_model)
+      if(is.null(regression_model)) {
+        return(NULL)
+      }
+      
       # print(regression_model)
       #return(tryCatch(broom::tidy(survey::svycoxph(formula=myformula,design=dsn)) %>% dplyr::mutate(feature=feature_name),
       #                warning = function(w) w,
       #                error = function(e) e
       #))
     } else {
-      regression_model = survey::svyglm(family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),design=dsn)
+      #regression_model = survey::svyglm(family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),design=dsn)
+      regression_model = tryCatch({
+        survey::svyglm(family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),design=dsn)
+      }, error = function(e) {
+        NULL
+      })
+      
+      # return(regression_model)
+      if(is.null(regression_model)) {
+        return(NULL)
+      }
+      
       #return(tryCatch(broom::tidy(survey::svyglm(family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),design=dsn)) %>% dplyr::mutate(feature=feature_name),
       #                warning = function(w) w,
       #                error = function(e) e
@@ -104,7 +149,18 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     }
   }
   if(model_type=='glm'){
-    regression_model = stats::glm(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)
+    #regression_model = stats::glm(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)
+    regression_model = tryCatch({
+      stats::glm(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)
+    }, error = function(e) {
+      NULL
+    })
+    
+    # return(regression_model)
+    if(is.null(regression_model)) {
+      return(NULL)
+    }
+    
     #return(tryCatch(broom::tidy(stats::glm(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)) %>% dplyr::mutate(feature=feature_name),
     #                warning = function(w) w,
     #                error = function(e) e
