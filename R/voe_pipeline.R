@@ -58,6 +58,10 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     association_output=association_output_full[['output']]
     print("PRINTING ASSOCIATION OUTPUT")
     print(association_output)
+    if(nrow(association_output) == 0) {
+      print("None of your models worked.")
+      return(NULL)
+    }
     # View(association_output_full)
     
     if(meta_analysis == TRUE){
