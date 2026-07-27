@@ -303,7 +303,8 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
   dependent_variables=dependent_variables %>% dplyr::select(-(toremove+1))
   if(ncol(dependent_variables)==1){
     print('After filtering your data, you had nothing left. Try changing your filtering threshold for zero-value data and running again.')
-    quit()
+    #quit()
+    return(NULL)
   }
   independent_variables <- dplyr::as_tibble(x[[2]])
   # print(independent_variables)
@@ -321,7 +322,8 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
     print(todrop)
     if(primary_variable %in% todrop){
       print('One of the variables being dropped is your variable of interethis will result in the pipeline failing. Please adjust your independent variables and try again.')
-      quit()
+      return(NULL)
+      #quit()
     }
   }
   independent_variables=independent_variables %>% dplyr::select(-tidyselect::all_of(todrop))
@@ -342,7 +344,8 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
     print(paste("All of your regression output failed. Printing error messages to screen."))
     Sys.sleep(3)
     print(out)
-    quit()
+    return(NULL)
+    #quit()
   }
   out_success_model_out = purrr::map(out_success, function(x) x[[1]])
   out_success_model_out_termplot = purrr::map(out_success, function(x) x[[2]])
