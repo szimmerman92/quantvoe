@@ -56,6 +56,8 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     output_to_return[['initial_termplot']] = association_output_full[['termplot']]
     vibrate=association_output_full[['vibrate']]
     association_output=association_output_full[['output']]
+    print("PRINTING ASSOCIATION OUTPUT")
+    print(association_output)
     # View(association_output_full)
     
     if(meta_analysis == TRUE){
