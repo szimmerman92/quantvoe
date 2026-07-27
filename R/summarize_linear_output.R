@@ -283,6 +283,7 @@ summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
 #' @importFrom dplyr "%>%"
 #' @export
 analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size){
+  print("In analyze voe data")
   voe_annotated =get_adjuster_expanded_vibrations(vibration_output[[1]], vibration_output[[2]],constant_adjusters)
   # View(voe_annotated)
   voe_unnested_annotated = filter_unnest_feature_vib(voe_annotated) %>% dplyr::select(-.data$vars)
