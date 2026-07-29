@@ -235,7 +235,7 @@ summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
   # p_funs <- purrr::map(p, ~purrr::partial(quantile, probs = .x, na.rm = TRUE)) %>% purrr::set_names(nm = p_names)
   # df_pval = df %>% dplyr::group_by(.data$dependent_feature,.data$term) %>% dplyr::summarize_at(dplyr::vars(.data$p.value), tibble::lst(!!!p_funs)) %>% dplyr::mutate(pvalue_diff_99_1 = .data$`pval_quantile_99%`-.data$`pval_quantile_1%`) %>% ungroup()
   # summarized_voe_data=dplyr::bind_cols(model_counts, df_estimates %>% dplyr::select(-c(dependent_feature,term)),df_pval %>% dplyr::select(-c(dependent_feature,term)))
-  print(colnames(df))
+  # print(colnames(df))
   summarized_voe_data <- df %>% 
     group_by(dependent_feature
              , term) %>%
@@ -283,7 +283,7 @@ summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
 #' @importFrom dplyr "%>%"
 #' @export
 analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size){
-  print("In analyze voe data")
+  # print("In analyze voe data")
   voe_annotated =get_adjuster_expanded_vibrations(vibration_output[[1]], vibration_output[[2]],constant_adjusters)
   # View(voe_annotated)
   voe_unnested_annotated = filter_unnest_feature_vib(voe_annotated) %>% dplyr::select(-.data$vars)

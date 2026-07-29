@@ -47,10 +47,10 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   
   # if dependent variable is of type survival.
   if(class(dependent_variables[[feature_name]])[1]=="Surv" & model_type != "survey") { 
-    print("I'm in survival but not svy.coxph")
+    # print("I'm in survival but not svy.coxph")
     # we will do cox regression
     myformula = stats::as.formula(paste(feature_name, "~ ",primary_variable_formodel))
-    print(myformula)
+    # print(myformula)
     weights = regression_df %>% dplyr::select(weights) %>% unlist %>% unname
     #regression_model = coxph(formula=myformula,weights=weights,data=regression_df)
     
@@ -170,11 +170,11 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   
   # View(regression_model)
   
-  print("Right before termplot")
+  # print("Right before termplot")
   
   if(model_type == "survey" & length(num_knots) > 0)
   {
-    print("Running manual_termplot")
+    # print("Running manual_termplot")
     
     df_predicted_risk_primary_variable <- termplot(regression_model
              , se = TRUE
@@ -236,7 +236,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
     # View(summary(regression_model))
     degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
-    View(df_predicted_risk_primary_variable)
+    # View(df_predicted_risk_primary_variable)
     
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
       mutate(lower_bound_quantiles = lower_bound_quantiles) %>%

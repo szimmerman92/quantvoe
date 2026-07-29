@@ -155,7 +155,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
   {
     if(model_type == "survey" & length(num_knots) > 0)
     {
-      print("Running manual_termplot")
+      # print("Running manual_termplot")
       df_predicted_risk_primary_variable <- termplot(regression_model
                                                      , se = TRUE
                                                      , data   = dsn$variables 
@@ -305,7 +305,7 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
     output = purrr::map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
     # print("After vibrate function call")
   }
-  View(output)
+  # View(output)
   # print("Vibration finished")
   dplyr::bind_rows(output)
 }

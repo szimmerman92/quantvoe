@@ -48,51 +48,42 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     Sys.sleep(2)
     print('Deploying initial associations')
     association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters=initial_regression_independent_vars,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots,spline_type,quantile_bounds)
-    if(is.null(association_output_full)) {
-      print("All models failed to converge.")
-      return(output_to_return)
-    }
+    # View(association_output_full)
     output_to_return[['initial_association_output']] = association_output_full[['output']]
     output_to_return[['initial_termplot']] = association_output_full[['termplot']]
     vibrate=association_output_full[['vibrate']]
     association_output=association_output_full[['output']]
-    print("PRINTING ASSOCIATION OUTPUT")
-    print(association_output)
-    if(nrow(association_output) == 0) {
-      print("None of your models worked.")
-      return(NULL)
-    }
-    # View(association_output_full)
+    
+    # print("Before meta analysis")
     
     if(meta_analysis == TRUE){
       metaanalysis <- compute_metaanalysis(association_output)
       metaanalysis_cleaned <- clean_metaanalysis(metaanalysis,dataset_num)
       output_to_return[['meta_analyis_output']] = metaanalysis_cleaned
-      if(!is.null(fdr_cutoff)) {
-        features_of_interest = metaanalysis_cleaned %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
-      } else {
-        features_of_interest = metaanalysis_cleaned %>% dplyr::pull(feature) %>% unique
-      }
+      features_of_interest = metaanalysis_cleaned %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
     } else{
-      if(!is.null(fdr_cutoff)) {
-        features_of_interest = association_output %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
-      } else {
-        features_of_interest =  association_output %>% dplyr::pull(feature) %>% unique
-      }
+      features_of_interest = association_output %>% dplyr::filter(!!rlang::sym(fdr_method)<=as.numeric(fdr_cutoff)) %>% dplyr::pull(feature) %>% unique
     }
+    
     if(length(unlist(unname(features_of_interest)))==0){
       print('No significant features found, consider adjusting parameters or data and trying again.')
       return(output_to_return)
     }
+    # print("before vibrate")
+    
     if(vibrate==TRUE){
       output_to_return[['features_to_vibrate_over']] = features_of_interest
       vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest,num_knots,spline_type,quantile_bounds)
+      # View(vibration_output)
+      # print("Done with vibrations")
       output_to_return[['vibration_variables']] = vibration_output[[2]]
       if(confounder_analysis==TRUE){
+        # print("In confounder analysis")
         analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size)
         output_to_return[['vibration_output']] = analyzed_voe_data
       }
       else{
+        # print("NOT in confounder analysis")
         output_to_return[['vibration_output']] = vibration_output[[1]]
       }
     }
