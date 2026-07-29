@@ -56,7 +56,7 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     if(nrow(association_output) == 0) {
       return(output_to_return)
     }
-    
+    View(association_output)
     # print("Before meta analysis")
     
     if(meta_analysis == TRUE){
