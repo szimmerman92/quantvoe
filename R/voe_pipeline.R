@@ -78,10 +78,10 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
       output_to_return[['features_to_vibrate_over']] = features_of_interest
       vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest,num_knots,spline_type,quantile_bounds)
       # View(vibration_output)
-      # print("Done with vibrations")
+      print("Done with vibrations")
       output_to_return[['vibration_variables']] = vibration_output[[2]]
       if(confounder_analysis==TRUE){
-        # print("In confounder analysis")
+        print("In confounder analysis")
         analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size)
         output_to_return[['vibration_output']] = analyzed_voe_data
       }
