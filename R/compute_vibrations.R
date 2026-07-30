@@ -97,15 +97,44 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
       dataset_id = dataset_id,
       vars = varset,
-      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),weights=regression_df %>% dplyr::select(tidyselect::all_of(weights)) %>% unlist %>% unname,data = regression_df),warning = function(w) w, error = function(e) e), .progress = TRUE)
+      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(paste("I(`",feature,"`) ~ "
+                                                                                                     ,primary_variable_formodel
+                                                                                                     ,'+'
+                                                                                                     ,paste(ifelse(is_empty(y) == TRUE
+                                                                                                                   , ""
+                                                                                                                   , '+')
+                                                                                                            ,collapse='+',sep='')
+                                                                                                     ,sep='',collapse=''))
+                                                                     ,weights=regression_df %>% 
+                                                                       dplyr::select(tidyselect::all_of(weights)) %>% 
+                                                                       unlist %>% unname
+                                                                     ,data = regression_df)
+                                                        # ,warning = function(w) w
+                                                        , error = function(e) e)
+                             , .progress = TRUE)
       )
     
   }
   if(model_type=='survey'){
-    dsn=survey::svydesign(weights=regression_df %>% dplyr::select(tidyselect::all_of(weights)) %>% unlist %>% unname,ids=regression_df %>% dplyr::select(tidyselect::all_of(ids)) %>% unlist %>% unname,nest=as.logical(nest),strata=regression_df %>% dplyr::select(tidyselect::all_of(strata))  %>% unlist %>% unname,data=regression_df)
+    # View(regression_df)
+    dsn=survey::svydesign(weights=regression_df %>% 
+                            dplyr::select(tidyselect::all_of(weights)) %>% 
+                            unlist %>% 
+                            unname
+                          , ids=regression_df %>% 
+                            dplyr::select(tidyselect::all_of(ids)) %>% 
+                            unlist %>% 
+                            unname,nest=as.logical(nest)
+                          , strata=regression_df %>% dplyr::select(tidyselect::all_of(strata)) %>% 
+                            unlist %>% 
+                            unname 
+                          , data=regression_df)
     if(class(merged_data[[feature]])[1]=="Surv") 
     {
+      # print("In survey and survival")
       options(survey.lonely.psu = "adjust")
+      # View(dsn)
+      # View(varset)
       tibble_out = tibble::tibble(
         dependent_feature = feature,
         independent_feature = primary_variable,
@@ -122,7 +151,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
                                                                                                            ,sep=''
                                                                                                            ,collapse=''))
                                                                            , design=dsn)
-                                                          ,warning = function(w) w
+                                                          # , warning = function(w) w
                                                           , error = function(e) e)
                                , .progress = TRUE)
         )
@@ -134,7 +163,20 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
         dataset_id = dataset_id,
         vars = varset,
-        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),design=dsn),warning = function(w) w, error = function(e) e), .progress = TRUE)
+        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::as.formula(paste("I(`",feature,"`) ~ "
+                                                                                                                       ,primary_variable_formodel
+                                                                                                                       ,'+'
+                                                                                                                       ,paste(ifelse(is_empty(y) == TRUE
+                                                                                                                                     , ""
+                                                                                                                                     , '+')
+                                                                                                                              ,collapse='+'
+                                                                                                                              ,sep='')
+                                                                                                                       ,sep=''
+                                                                                                                       ,collapse=''))
+                                                                         ,design=dsn)
+                                                          # , warning = function(w) w
+                                                          , error = function(e) e)
+                               , .progress = TRUE)
          )
     }
   }
@@ -145,7 +187,24 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
       dataset_id = dataset_id,
       vars = varset,
-      full_fits = purrr::map(vars, function(y) tryCatch(stats::glm(formula=stats::as.formula(paste("I(`",feature,"`) ~ ",primary_variable_formodel,'+',paste(ifelse(is_empty(y) == TRUE, "", '+'),collapse='+',sep=''),sep='',collapse='')),weights=regression_df %>% dplyr::select(tidyselect::all_of(weights)) %>% unlist %>% unname,family=family,data = regression_df),warning = function(w) w, error = function(e) e), .progress = TRUE)
+      full_fits = purrr::map(vars, function(y) tryCatch(stats::glm(formula=stats::as.formula(paste("I(`",feature,"`) ~ "
+                                                                                                   ,primary_variable_formodel
+                                                                                                   ,'+'
+                                                                                                   ,paste(ifelse(is_empty(y) == TRUE
+                                                                                                                 , ""
+                                                                                                                 , '+')
+                                                                                                          ,collapse='+'
+                                                                                                          ,sep='')
+                                                                                                   ,sep='',collapse=''))
+                                                                   ,weights=regression_df %>% 
+                                                                     dplyr::select(tidyselect::all_of(weights)) %>% 
+                                                                     unlist %>% 
+                                                                     unname
+                                                                   ,family=family
+                                                                   ,data = regression_df)
+                                                        # ,warning = function(w) w
+                                                        , error = function(e) e)
+                             , .progress = TRUE)
       )
     
   }
@@ -245,7 +304,12 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
   
   tibble_out$termplot_fit = purrr::map(tibble_out$full_fits
                                        , function(x) tryCatch(predict_for_primary_variable(x
-                                                                                           ,primary_variable,feature,quantile_bounds,num_knots,dsn,model_type)
+                                                                                           ,primary_variable
+                                                                                           ,feature
+                                                                                           ,quantile_bounds
+                                                                                           ,num_knots
+                                                                                           ,dsn
+                                                                                           ,model_type)
                                                               # ,warning = function(w) w
                                                               ,error = function(e) e))
   
