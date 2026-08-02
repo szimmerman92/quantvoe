@@ -352,6 +352,7 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
   todrop = setdiff(colnames(in_sub),tokeep)
   if(length(todrop)>1){
     in_sub=in_sub %>% dplyr::select(-tidyselect::all_of(todrop))
+    constant_adjusters = setdiff(constant_adjusters,todrop)
   }
 
   features_of_interest = intersect(features_of_interest,colnames(dep_sub))

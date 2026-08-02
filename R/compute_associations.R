@@ -47,18 +47,17 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   
   # if dependent variable is of type survival.
   if(class(dependent_variables[[feature_name]])[1]=="Surv" & model_type != "survey") { 
-    # print("I'm in survival but not svy.coxph")
     # we will do cox regression
     myformula = stats::as.formula(paste(feature_name, "~ ",primary_variable_formodel))
     # print(myformula)
     weights = regression_df %>% dplyr::select(weights) %>% unlist %>% unname
     #regression_model = coxph(formula=myformula,weights=weights,data=regression_df)
-    
-    regression_model = tryCatch({
+    regression_model = #tryCatch({
       coxph(formula = myformula, weights = weights, data = regression_df)
-    }, error = function(e) {
-      NULL
-    })
+    #}, error = function(e) {
+    #  NULL
+    #})
+    print(summary(regression_model))
     
     # return(regression_model)
     if(is.null(regression_model)) {
@@ -106,19 +105,66 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     if(class(dependent_variables[[feature_name]])[1]=="Surv") {
       # print("I'm in survival and survey")
       myformula = stats::as.formula(paste(feature_name, "~ ",primary_variable_formodel))
+      
+      # print(nrow(regression_df))
+      # myformula = stats::as.formula("cancer_death_status_surv ~ splines::bs(LBXCOT, df = 6)")
       # print(myformula)
    
+      # X <- splines::bs(dsn$variables$LBXCOT, df = 6)
+      # 
+      # # Interior knots (the ones bs() chose internally)
+      # print(attr(X, "knots"))
+      # 
+      # # Boundary knots (min/max used, or whatever you specified via Boundary.knots)
+      # print(attr(X, "Boundary.knots"))
+      # 
+      # # Degree (default cubic = 3)
+      # print(attr(X, "degree"))
+      
+      # X <- splines::bs(dsn$variables$LBXCOT, knots = c(0.011, 0.026, 0.07, 3.23400000000001))
+      # View(apply(X, 2, sd))          # look for a column with ~0 variance -> that's your #7
+      # print(range(dsn$variables$LBXCOT))  # compare to the outer knot, 3.234
+      # print(sum(dsn$variables$LBXCOT > 3.234))  # if this is 0 or tiny, that's the smoking gun
+      
+      
+      # df <- dsn$variables
+      # print(colnames(df))
+      
+      # df_counts <- df %>%
+      #   filter(LBXCOT > 3.23400000000001) %>%
+      #   count(cancer_death_status_surv)
+      # print(df_counts)
+       
+      # View(regression_df)
+      
+      # X <- model.matrix(myformula, data = dsn$variables)
+      # View(X)
+      # View(cor(X))
+
+      # print(qr(X)$rank)
+      # print(ncol(X))
+      # hist(X[,ncol(X)])
+      # qr_X <- qr(X)
+      # # Columns qr_X$pivot gives you the order; the last (ncol(X) - rank) 
+      # # pivoted columns are the "extra" ones not contributing new rank
+      # rank <- qr_X$rank
+      # redundant_cols <- qr_X$pivot[(rank + 1):ncol(X)]
+      # print(colnames(X)[redundant_cols])
+      
+      
+      
       # To view the matrix with all variables in the regression formula along with the dummy columns for the categorical variables
       # View(model.matrix(myformula, regression_df))
  
+      # View(dsn$variables)
       #regression_model = survey::svycoxph(formula=myformula,design=dsn)
       
-      regression_model = tryCatch({
+      regression_model <- #tryCatch({
         survey::svycoxph(formula=myformula,design=dsn)
-      }, error = function(e) {
-        NULL
-      })
-      
+      # }, error = function(e) {
+      #   NULL
+      # })
+      # View(regression_model)
       # return(regression_model)
       if(is.null(regression_model)) {
         return(NULL)
@@ -292,7 +338,6 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
 #' @keywords regression, initial association
 run_associations <- function(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds){
   dependent_variables <- dplyr::as_tibble(x[[1]])
-  
   classes = dependent_variables %>% summarise_all(class)
   classes = as.character(classes)
   colnames(dependent_variables)[[1]]='sampleID'
@@ -315,6 +360,9 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
   colnames(independent_variables)[1]='sampleID'
   tokeep = independent_variables %>% dplyr::select_if(~ length(unique(.)) > 1) %>% colnames
   todrop = setdiff(colnames(independent_variables),tokeep)
+  
+  print("dropped cols")
+  print(todrop)
   # print("Right here")
   # print(tokeep)
   if(length(todrop)>1){
@@ -327,10 +375,14 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
     }
   }
   independent_variables=independent_variables %>% dplyr::select(-tidyselect::all_of(todrop))
+  constant_adjusters = setdiff(constant_adjusters,todrop)
+  #constant_adjusters=constant_adjusters %>% dplyr::select(-tidyselect::all_of(todrop))
+  print(constant_adjusters)
   if(ncol(independent_variables)==2){
     vibrate=FALSE
   }
   overlap = intersect(colnames(independent_variables %>% dplyr::select(-.data$sampleID)),colnames(dependent_variables %>% dplyr::select(-.data$sampleID)))
+  
   if(length(overlap)>0){
     print('The following variables are in both the dependent and independent datasets. This may cause some some regressions to fail, though the pipeline will still run to completion.')
     print(overlap)
@@ -380,6 +432,7 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
 compute_initial_associations <- function(bound_data,primary_variable, constant_adjusters = NULL,model_type = 'glm', proportion_cutoff = 1,vibrate = TRUE,family = gaussian(),ids = NULL,strata =NULL,weights =NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds){
   # print("In compute_initial_associations")
   # print(weights)
+  
   output = apply(bound_data, 1, function(x) run_associations(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
   # View(output)
   output_regs = purrr::map(output, function(x) x[[1]])
