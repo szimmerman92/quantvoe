@@ -57,8 +57,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     #}, error = function(e) {
     #  NULL
     #})
-    print(summary(regression_model))
-    
+
     # return(regression_model)
     if(is.null(regression_model)) {
       return(NULL)
@@ -361,8 +360,6 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
   tokeep = independent_variables %>% dplyr::select_if(~ length(unique(.)) > 1) %>% colnames
   todrop = setdiff(colnames(independent_variables),tokeep)
   
-  print("dropped cols")
-  print(todrop)
   # print("Right here")
   # print(tokeep)
   if(length(todrop)>1){
@@ -376,8 +373,6 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
   }
   independent_variables=independent_variables %>% dplyr::select(-tidyselect::all_of(todrop))
   constant_adjusters = setdiff(constant_adjusters,todrop)
-  #constant_adjusters=constant_adjusters %>% dplyr::select(-tidyselect::all_of(todrop))
-  print(constant_adjusters)
   if(ncol(independent_variables)==2){
     vibrate=FALSE
   }
