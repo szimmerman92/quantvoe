@@ -52,11 +52,11 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     # print(myformula)
     weights = regression_df %>% dplyr::select(weights) %>% unlist %>% unname
     #regression_model = coxph(formula=myformula,weights=weights,data=regression_df)
-    regression_model = #tryCatch({
+    regression_model = tryCatch({
       coxph(formula = myformula, weights = weights, data = regression_df)
-    #}, error = function(e) {
-    #  NULL
-    #})
+    }, error = function(e) {
+      NULL
+    })
 
     # return(regression_model)
     if(is.null(regression_model)) {
@@ -158,11 +158,11 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
       # View(dsn$variables)
       #regression_model = survey::svycoxph(formula=myformula,design=dsn)
       
-      regression_model <- #tryCatch({
+      regression_model <- tryCatch({
         survey::svycoxph(formula=myformula,design=dsn)
-      # }, error = function(e) {
-      #   NULL
-      # })
+       }, error = function(e) {
+         NULL
+       })
       # View(regression_model)
       # return(regression_model)
       if(is.null(regression_model)) {
