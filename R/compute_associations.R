@@ -62,6 +62,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     if(is.null(regression_model)) {
       return(NULL)
     }
+    degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
     # print(summary(regression_model))
     #return(broom::tidy(coxph(formula=myformula,weights=weights,data=regression_df)) %>% dplyr::mutate(feature=feature_name))
     #return(tryCatch(broom::tidy(coxph(formula=myformula,weights=weights,data=regression_df)) %>% dplyr::mutate(feature=feature_name),
@@ -84,6 +85,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     if(is.null(regression_model)) {
       return(NULL)
     }
+    degree_of_freedom = df.residual(regression_model)
     
     #return(tryCatch(broom::tidy(MASS::glm.nb(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)) %>% dplyr::mutate(feature=feature_name),
     #                warning = function(w) w, 
@@ -168,6 +170,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
       if(is.null(regression_model)) {
         return(NULL)
       }
+      degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
       
       # print(regression_model)
       #return(tryCatch(broom::tidy(survey::svycoxph(formula=myformula,design=dsn)) %>% dplyr::mutate(feature=feature_name),
@@ -186,7 +189,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
       if(is.null(regression_model)) {
         return(NULL)
       }
-      
+      degree_of_freedom = df.residual(regression_model)
       #return(tryCatch(broom::tidy(survey::svyglm(family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),design=dsn)) %>% dplyr::mutate(feature=feature_name),
       #                warning = function(w) w,
       #                error = function(e) e
@@ -205,6 +208,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     if(is.null(regression_model)) {
       return(NULL)
     }
+    degree_of_freedom = df.residual(regression_model)
     
     #return(tryCatch(broom::tidy(stats::glm(weights=regression_df %>% dplyr::select(weights) %>% unlist %>% unname,family=family,formula=stats::as.formula(stringr::str_c("I(`", feature_name,"`) ~ ",primary_variable_formodel)),data = regression_df)) %>% dplyr::mutate(feature=feature_name),
     #                warning = function(w) w,
@@ -259,7 +263,8 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     # print(min_primary_variable)
     center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
     # View(summary(regression_model))
-    degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
+    
+    #degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
     print(paste("Degrees of freedom:",degree_of_freedom))
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
       mutate(y_centered = y - center) %>%

@@ -29,7 +29,7 @@
 #' @importFrom rlang .data
 #' @keywords pipeline
 #' @export
-full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,initial_regression_independent_vars=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0, spline_type=NULL,center_for_effect_size,quantile_bounds){
+full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,initial_regression_independent_vars=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0, spline_type=NULL,center_for_effect_size,quantile_bounds=NULL){
   output_to_return = list()
   if(inherits(dependent_variables, "list")==TRUE){
     print('Identified multiple input datasets, preparing to run meta-analysis.')
