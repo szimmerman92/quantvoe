@@ -247,7 +247,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   # print(names(termplot(regression_model, se = TRUE, plot = FALSE)))
   # View(tidy(regression_model))
   # View(glance(regression_model))
-  # View(df_predicted_risk_primary_variable)
+  View(df_predicted_risk_primary_variable)
   
   data_type_primary_variable <- class(df_predicted_risk_primary_variable$x)
   
