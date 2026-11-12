@@ -260,6 +260,7 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
     # View(summary(regression_model))
     degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
+    print(paste("Degrees of freedom:",degree_of_freedom))
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
       mutate(y_centered = y - center) %>%
       mutate(ci_lower_y = y_centered - 1.96*se) %>%
