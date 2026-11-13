@@ -249,18 +249,18 @@ summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
               , pval_quantile_50 = quantile(p.value, probs = 0.5)
               , pval_quantile_99 = quantile(p.value, probs = 0.99)
               , pvalue_diff_99_1 = pval_quantile_99 - pval_quantile_1
-              , estimate_mean_over_vibration = mean(estimate)
-              , estimate_ci_lower_over_vibration = mean(effect_size_ci_lower)
-              , estimate_ci_upper_over_vibration = mean(effect_size_ci_upper)
-              , estimate_se_over_vibration = (mean(ci_upper_y) - mean(ci_lower_y))/(2*1.96)
-              , t_statistic_estimate_over_vibration = mean(y_centered)/estimate_se_over_vibration
-              , crosses_the_center = ifelse(center_for_effect_size > estimate_ci_lower_over_vibration 
-                                            & center_for_effect_size < estimate_ci_upper_over_vibration
-                                            , "yes"
-                                            , "no")
+              #, estimate_mean_over_vibration = mean(estimate)
+              #, estimate_ci_lower_over_vibration = mean(effect_size_ci_lower)
+              #, estimate_ci_upper_over_vibration = mean(effect_size_ci_upper)
+              #, estimate_se_over_vibration = (mean(ci_upper_y) - mean(ci_lower_y))/(2*1.96)
+              #, t_statistic_estimate_over_vibration = mean(y_centered)/estimate_se_over_vibration
+              #, crosses_the_center = ifelse(center_for_effect_size > estimate_ci_lower_over_vibration 
+              #                              & center_for_effect_size < estimate_ci_upper_over_vibration
+              #                              , "yes"
+              #                              , "no")
               # , p.value_over_vibration = 2*pt(q = (t_statistic_estimate_over_vibration)
               #                                 , df = num_models - 1)
-              , p.value_over_vibration =  exp(-0.717*(abs(t_statistic_estimate_over_vibration)) - 0.416*abs(t_statistic_estimate_over_vibration)^2)
+              #, p.value_over_vibration =  exp(-0.717*(abs(t_statistic_estimate_over_vibration)) - 0.416*abs(t_statistic_estimate_over_vibration)^2)
               # , exact_results = fisher.test(x=factor(as.numeric(effect_size>center_for_effect_size),levels=c(0,1))
               #                               , y=factor(as.numeric(p.value < 0.05),levels=c(0,1)))$p.value
     ) %>%
