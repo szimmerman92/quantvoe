@@ -97,7 +97,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
       dataset_id = dataset_id,
       vars = varset,
-      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(formula=stats::as.formula(paste("I(`",feature,"`) ~ "
+      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(paste("I(`",feature,"`) ~ "
                                                                                                                                ,primary_variable_formodel,
                                                                                                                                ifelse(is_empty(y) == TRUE, "", '+'),
                                                                                                                                paste(y,collapse="+",sep="")
@@ -160,7 +160,7 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
         dataset_id = dataset_id,
         vars = varset,
-        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::formula=stats::as.formula(paste("I(`",feature,"`) ~ "
+        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::as.formula(paste("I(`",feature,"`) ~ "
                                                                                                                                       ,primary_variable_formodel,
                                                                                                                                       ifelse(is_empty(y) == TRUE, "", '+'),
                                                                                                                                       paste(y,collapse="+",sep="")
