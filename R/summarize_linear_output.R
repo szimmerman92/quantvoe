@@ -240,16 +240,16 @@ summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
     group_by(dependent_feature
              , term) %>%
     summarise(estimate_quantile_1 = quantile(estimate, probs = 0.01)
-              , estimate_quantile_50 = quantile(effect_size, probs = 0.5)
-              , estimate_quantile_99 = quantile(effect_size, probs = 0.99)
+              , estimate_quantile_50 = quantile(estimate, probs = 0.5)
+              , estimate_quantile_99 = quantile(estimate, probs = 0.99)
               , estimate_diff_99_1 = estimate_quantile_99 - estimate_quantile_1
-              , num_models = sum(!is.na(effect_size))
-              , janus_effect = sum(effect_size>center_for_effect_size,na.rm=TRUE)/num_models
+              , num_models = sum(!is.na(estimate))
+              , janus_effect = sum(estimate>center_for_effect_size,na.rm=TRUE)/num_models
               , pval_quantile_1 = quantile(p.value, probs = 0.01)
               , pval_quantile_50 = quantile(p.value, probs = 0.5)
               , pval_quantile_99 = quantile(p.value, probs = 0.99)
               , pvalue_diff_99_1 = pval_quantile_99 - pval_quantile_1
-              , estimate_mean_over_vibration = mean(effect_size)
+              , estimate_mean_over_vibration = mean(estimate)
               , estimate_ci_lower_over_vibration = mean(effect_size_ci_lower)
               , estimate_ci_upper_over_vibration = mean(effect_size_ci_upper)
               , estimate_se_over_vibration = (mean(ci_upper_y) - mean(ci_lower_y))/(2*1.96)
