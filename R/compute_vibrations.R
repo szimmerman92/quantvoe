@@ -241,13 +241,13 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         degree_of_freedom = df.residual(regression_model)
       }
       df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-        mutate(y_centered = y - center) %>%
-        mutate(ci_lower_y = y_centered - 1.96*se) %>%
-        mutate(ci_upper_y = y_centered + 1.96*se) %>%
-        mutate(statistic = (y_centered/se)) %>%
-        mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
-        mutate(primary_variable_name=primary_variable) %>% 
-        mutate(feature=feature)
+        dplyr::mutate(y_centered = y - center) %>%
+        dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
+        dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
+        dplyr::mutate(statistic = (y_centered/se)) %>%
+        dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
+        dplyr::mutate(primary_variable_name=primary_variable) %>% 
+        dplyr::mutate(feature=feature)
     } else {
       # print("in novemtiles termplots")
       # print("compute vibrations")
@@ -263,15 +263,15 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
       # View(degree_of_freedom)
       df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-        mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
-        mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
-        mutate(y_centered = y - center) %>%
-        mutate(ci_lower_y = y_centered - 1.96*se) %>%
-        mutate(ci_upper_y = y_centered + 1.96*se) %>%
-        mutate(statistic = (y_centered/se)) %>%
-        mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>%
-        mutate(primary_variable_name=primary_variable) %>%
-        mutate(feature=feature)
+        dplyr::mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
+        dplyr::mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
+        dplyr::mutate(y_centered = y - center) %>%
+        dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
+        dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
+        dplyr::mutate(statistic = (y_centered/se)) %>%
+        dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>%
+        dplyr::mutate(primary_variable_name=primary_variable) %>%
+        dplyr::mutate(feature=feature)
      # print("end of novemtiles termplots")
       # View(df_predicted_risk_primary_variable)
     }
@@ -281,12 +281,12 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
     if(class(merged_data[[feature]])[1]=="Surv")
     {
       df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-        mutate(effect_size = exp(y_centered)
+        dplyr::mutate(effect_size = exp(y_centered)
                , effect_size_ci_lower = exp(ci_lower_y)
                , effect_size_ci_upper = exp(ci_upper_y))
     } else {
       df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-        mutate(effect_size = y_centered
+        dplyr::mutate(effect_size = y_centered
                , effect_size_ci_lower = ci_lower_y
                , effect_size_ci_upper = ci_upper_y)
     }
