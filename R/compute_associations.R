@@ -266,13 +266,13 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     
     #degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      mutate(y_centered = y - center) %>%
-      mutate(ci_lower_y = y_centered - 1.96*se) %>%
-      mutate(ci_upper_y = y_centered + 1.96*se) %>%
-      mutate(statistic = (y_centered/se)) %>%
-      mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
-      mutate(primary_variable_name=primary_variable) %>% 
-      mutate(feature=feature_name)
+      dplyr::mutate(y_centered = y - center) %>%
+      dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
+      dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
+      dplyr::mutate(statistic = (y_centered/se)) %>%
+      dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
+      dplyr::mutate(primary_variable_name=primary_variable) %>% 
+      dplyr::mutate(feature=feature_name)
     
   } else {
     
@@ -289,15 +289,15 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     # View(df_predicted_risk_primary_variable)
     
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
-      mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
-      mutate(y_centered = y - center) %>%
-      mutate(ci_lower_y = y_centered - 1.96*se) %>%
-      mutate(ci_upper_y = y_centered + 1.96*se) %>%
-      mutate(statistic = (y_centered/se)) %>%
-      mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
-      mutate(primary_variable_name=primary_variable) %>% 
-      mutate(feature=feature_name)
+      dplyr::mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
+      dplyr::mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
+      dplyr::mutate(y_centered = y - center) %>%
+      dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
+      dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
+      dplyr::mutate(statistic = (y_centered/se)) %>%
+      dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
+      dplyr::mutate(primary_variable_name=primary_variable) %>% 
+      dplyr::mutate(feature=feature_name)
 
   }
   
@@ -307,12 +307,12 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
   if(class(dependent_variables[[feature_name]])[1]=="Surv")
   {
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      mutate(effect_size = exp(y_centered)
+      dplyr::mutate(effect_size = exp(y_centered)
              , effect_size_ci_lower = exp(ci_lower_y)
              , effect_size_ci_upper = exp(ci_upper_y))
   } else {
     df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      mutate(effect_size = y_centered
+      dplyr::mutate(effect_size = y_centered
              , effect_size_ci_lower = ci_lower_y
              , effect_size_ci_upper = ci_upper_y)
   }
