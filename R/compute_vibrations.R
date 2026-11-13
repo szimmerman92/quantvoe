@@ -355,12 +355,12 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
   if(as.integer(cores)>1){
     options(future.globals.maxSize = +Inf)
     future::plan(future::multisession, workers = as.integer(cores))
-    output = furrr::future_map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, feature=x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
+    output = furrr::future_map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, feature=x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds),
+                               .options = furrr::furrr_options(packages = c("dplyr", "magrittr", "broom", "MASS", "survey", "survival")))
   }
   else{
     # print("Before vibrate function call")
-    output = purrr::map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds),
-                        .options = furrr::furrr_options(packages = c("dplyr", "magrittr", "broom", "MASS", "survey", "survival")))
+    output = purrr::map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
     # print("After vibrate function call")
   }
   # View(output)
