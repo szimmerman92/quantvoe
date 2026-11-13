@@ -97,14 +97,11 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
       dataset_id = dataset_id,
       vars = varset,
-      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(paste("I(`",feature,"`) ~ "
-                                                                                                     ,primary_variable_formodel
-                                                                                                     ,'+'
-                                                                                                     ,paste(ifelse(is_empty(y) == TRUE
-                                                                                                                   , ""
-                                                                                                                   , '+')
-                                                                                                            ,collapse='+',sep='')
-                                                                                                     ,sep='',collapse=''))
+      full_fits = purrr::map(vars, function(y) tryCatch(MASS::glm.nb(formula=stats::as.formula(formula=stats::as.formula(paste("I(`",feature,"`) ~ "
+                                                                                                                               ,primary_variable_formodel,
+                                                                                                                               ifelse(is_empty(y) == TRUE, "", '+'),
+                                                                                                                               paste(y,collapse="+",sep="")
+                                                                                                                               ,sep='',collapse=''))
                                                                      ,weights=regression_df %>% 
                                                                        dplyr::select(tidyselect::all_of(weights)) %>% 
                                                                        unlist %>% unname
@@ -163,16 +160,11 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
         constant_adjusters = paste(constant_adjusters,sep='+',collapse='+'),
         dataset_id = dataset_id,
         vars = varset,
-        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::as.formula(paste("I(`",feature,"`) ~ "
-                                                                                                                       ,primary_variable_formodel
-                                                                                                                       ,'+'
-                                                                                                                       ,paste(ifelse(is_empty(y) == TRUE
-                                                                                                                                     , ""
-                                                                                                                                     , '+')
-                                                                                                                              ,collapse='+'
-                                                                                                                              ,sep='')
-                                                                                                                       ,sep=''
-                                                                                                                       ,collapse=''))
+        full_fits = purrr::map(vars, function(y) tryCatch(survey::svyglm(family=family,formula=stats::formula=stats::as.formula(paste("I(`",feature,"`) ~ "
+                                                                                                                                      ,primary_variable_formodel,
+                                                                                                                                      ifelse(is_empty(y) == TRUE, "", '+'),
+                                                                                                                                      paste(y,collapse="+",sep="")
+                                                                                                                                      ,sep='',collapse=''))
                                                                          ,design=dsn)
                                                           # , warning = function(w) w
                                                           , error = function(e) e)
@@ -188,13 +180,9 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
       dataset_id = dataset_id,
       vars = varset,
       full_fits = purrr::map(vars, function(y) tryCatch(stats::glm(formula=stats::as.formula(paste("I(`",feature,"`) ~ "
-                                                                                                   ,primary_variable_formodel
-                                                                                                   ,'+'
-                                                                                                   ,paste(ifelse(is_empty(y) == TRUE
-                                                                                                                 , ""
-                                                                                                                 , '+')
-                                                                                                          ,collapse='+'
-                                                                                                          ,sep='')
+                                                                                                   ,primary_variable_formodel,
+                                                                                                   ifelse(is_empty(y) == TRUE, "", '+'),
+                                                                                                   paste(y,collapse="+",sep="")
                                                                                                    ,sep='',collapse=''))
                                                                    ,weights=regression_df %>% 
                                                                      dplyr::select(tidyselect::all_of(weights)) %>% 
