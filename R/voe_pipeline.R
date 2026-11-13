@@ -25,11 +25,13 @@
 #' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","ns")
 #' @param center_for_effect_size determines how to calculate janus effect. 0 if values are linear, 1 if values are hazard ratio or risk ratios or fold differences 
 #' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
+
 #' @importFrom dplyr "%>%"
 #' @importFrom rlang .data
 #' @keywords pipeline
 #' @export
-full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,initial_regression_independent_vars=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0, spline_type=NULL,center_for_effect_size,quantile_bounds=NULL){
+full_voe_pipeline <- function(dependent_variables,independent_variables,primary_variable,constant_adjusters=NULL,initial_regression_independent_vars=NULL,vibrate=TRUE,fdr_method='BY',fdr_cutoff=0.05,max_vibration_num=10000, max_vars_in_model = 20,proportion_cutoff=1,meta_analysis=FALSE, model_type='survival', cores = 1, confounder_analysis=TRUE, family = gaussian(), ids = NULL, strata = NULL, weights = NULL, nest = NULL,num_knots=0, spline_type=NULL,center_for_effect_size,quantile_bounds=NULL,make_termPlots=FALSE){
   output_to_return = list()
   if(inherits(dependent_variables, "list")==TRUE){
     print('Identified multiple input datasets, preparing to run meta-analysis.')
@@ -47,10 +49,12 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
   if(passed==TRUE){
     Sys.sleep(2)
     print('Deploying initial associations')
-    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters=initial_regression_independent_vars,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots,spline_type,quantile_bounds)
+    association_output_full <- compute_initial_associations(bound_data, primary_variable,constant_adjusters=initial_regression_independent_vars,model_type,proportion_cutoff,vibrate, family, ids, strata, weights, nest,num_knots,spline_type,quantile_bounds,make_termPlots)
     # View(association_output_full)
     output_to_return[['initial_association_output']] = association_output_full[['output']]
-    output_to_return[['initial_termplot']] = association_output_full[['termplot']]
+    if(make_termPlots == TRUE) {
+      output_to_return[['initial_termplot']] = association_output_full[['termplot']]
+    }
     vibrate=association_output_full[['vibrate']]
     association_output=association_output_full[['output']]
     if(nrow(association_output) == 0) {
@@ -76,19 +80,22 @@ full_voe_pipeline <- function(dependent_variables,independent_variables,primary_
     
     if(vibrate==TRUE){
       output_to_return[['features_to_vibrate_over']] = features_of_interest
-      vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest,num_knots,spline_type,quantile_bounds)
+      vibration_output = compute_vibrations(bound_data,primary_variable,constant_adjusters,model_type,unname(unlist(features_of_interest)),max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata, weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots)
       # View(vibration_output)
       print("Done with vibrations")
       output_to_return[['vibration_variables']] = vibration_output[[2]]
-      if(confounder_analysis==TRUE){
-        # print("In confounder analysis")
-        analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size)
-        output_to_return[['vibration_output']] = analyzed_voe_data
-      }
-      else{
-        # print("NOT in confounder analysis")
-        output_to_return[['vibration_output']] = vibration_output[[1]]
-      }
+      analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size,make_termPlots)
+      output_to_return[['vibration_output']] = analyzed_voe_data
+      
+      #if(confounder_analysis==TRUE){
+      #  # print("In confounder analysis")
+      #  analyzed_voe_data = analyze_voe_data(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size)
+      #  output_to_return[['vibration_output']] = analyzed_voe_data
+      #}
+      #else{
+      #  # print("NOT in confounder analysis")
+      #  output_to_return[['vibration_output']] = vibration_output[[1]]
+      #}
     }
     print('Done!')
     return(output_to_return)

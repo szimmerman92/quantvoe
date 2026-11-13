@@ -16,10 +16,11 @@
 #' @param num_knots Numeric vector specifying the values of the primary variable of where the knots should be. If length of num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","pspline","ns")
 #' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @keywords regression, initial association
-regression <- function(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds){
+regression <- function(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots){
   # print("In regression()")
   # print(weights)
   feature_name = colnames(dependent_variables)[j+1]
@@ -215,109 +216,113 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
     #                error = function(e) e
     #))
   }
+  regression_model_df_stats = broom::tidy(regression_model) %>% dplyr::mutate(feature=feature_name) %>% dplyr::mutate(primary_variable_name=primary_variable)
+  
   # print(primary_variable)
   
   # View(regression_model)
   
   # print("Right before termplot")
-  
-  if(model_type == "survey" & length(num_knots) > 0)
-  {
-    # print("Running manual_termplot")
+  if(make_termPlots == TRUE) {
+    if(model_type == "survey" & length(num_knots) > 0)
+    {
+      # print("Running manual_termplot")
     
-    df_predicted_risk_primary_variable <- termplot(regression_model
+      df_predicted_risk_primary_variable <- termplot(regression_model
              , se = TRUE
              , data   = dsn$variables 
              , plot = FALSE)[[primary_variable]] 
     
-    # df_predicted_risk_primary_variable <- manual_termplot(
-    #   model = regression_model,
-    #   data   = dsn$variables,
-    #   var    = primary_variable,
-    #   knots  = num_knots,
-    #   boundary_knots = range(dsn$variables %>%
-    #                            pull(primary_variable), na.rm = TRUE),
-    #   use_observed_x = TRUE,
-    #   center_method  = "mean_basis"
-    # )[[primary_variable]]
+      # df_predicted_risk_primary_variable <- manual_termplot(
+      #   model = regression_model,
+      #   data   = dsn$variables,
+      #   var    = primary_variable,
+      #   knots  = num_knots,
+      #   boundary_knots = range(dsn$variables %>%
+      #                            pull(primary_variable), na.rm = TRUE),
+      #   use_observed_x = TRUE,
+      #   center_method  = "mean_basis"
+      # )[[primary_variable]]
       
-  } else {
+    } else {
     
-    df_predicted_risk_primary_variable <- termplot(regression_model
+      df_predicted_risk_primary_variable <- termplot(regression_model
                                                    , se = TRUE
                                                    , plot = FALSE)[[primary_variable]]
     
-  }
-  # print(names(termplot(regression_model, se = TRUE, plot = FALSE)))
-  # View(tidy(regression_model))
-  # View(glance(regression_model))
-  #View(df_predicted_risk_primary_variable)
-  
-  data_type_primary_variable <- class(df_predicted_risk_primary_variable$x)
-  
-  # print(quantile_bounds)
-  if(is.null(quantile_bounds) == TRUE)
-  {
-    # print("is.null(quantile_bounds)")
-    min_primary_variable = min(df_predicted_risk_primary_variable$x, na.rm = TRUE)
-    # print(min_primary_variable)
-    center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
-    # View(summary(regression_model))
+    }
+    # print(names(termplot(regression_model, se = TRUE, plot = FALSE)))
+    # View(tidy(regression_model))
+    # View(glance(regression_model))
+    #View(df_predicted_risk_primary_variable)
     
-    #degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
-    df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      dplyr::mutate(y_centered = y - center) %>%
-      dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
-      dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
-      dplyr::mutate(statistic = (y_centered/se)) %>%
-      dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
-      dplyr::mutate(primary_variable_name=primary_variable) %>% 
-      dplyr::mutate(feature=feature_name)
+    data_type_primary_variable <- class(df_predicted_risk_primary_variable$x)
     
-  } else {
-    
-    print("compute associations to quantile models")
     # print(quantile_bounds)
-    lower_bound_quantiles <- quantile_bounds[1:length(quantile_bounds) - 1]
-    # print(lower_bound_quantiles)
-    upper_bound_quantiles <- quantile_bounds[2:length(quantile_bounds)]
+    if(is.null(quantile_bounds) == TRUE)
+    {
+      # print("is.null(quantile_bounds)")
+      min_primary_variable = min(df_predicted_risk_primary_variable$x, na.rm = TRUE)
+      # print(min_primary_variable)
+      center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
+      # View(summary(regression_model))
     
-    min_primary_variable <- "_1"
-    center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
-    # View(summary(regression_model))
-    degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
-    # View(df_predicted_risk_primary_variable)
+      #degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
+      df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
+        dplyr::mutate(y_centered = y - center) %>%
+        dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
+        dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
+        dplyr::mutate(statistic = (y_centered/se)) %>%
+        dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
+        dplyr::mutate(primary_variable_name=primary_variable) %>% 
+        dplyr::mutate(feature=feature_name)
     
-    df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      dplyr::mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
-      dplyr::mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
-      dplyr::mutate(y_centered = y - center) %>%
-      dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
-      dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
-      dplyr::mutate(statistic = (y_centered/se)) %>%
-      dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
-      dplyr::mutate(primary_variable_name=primary_variable) %>% 
-      dplyr::mutate(feature=feature_name)
+    } else {
+    
+      print("compute associations to quantile models")
+      # print(quantile_bounds)
+      lower_bound_quantiles <- quantile_bounds[1:length(quantile_bounds) - 1]
+      # print(lower_bound_quantiles)
+      upper_bound_quantiles <- quantile_bounds[2:length(quantile_bounds)]
+      
+      min_primary_variable <- "_1"
+      center = with(df_predicted_risk_primary_variable, y[df_predicted_risk_primary_variable$x == min_primary_variable])
+      # View(summary(regression_model))
+      degree_of_freedom = summary(regression_model)$logtest["df"] %>% as.numeric(.)
+      # View(df_predicted_risk_primary_variable)
+    
+      df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
+        dplyr::mutate(lower_bound_quantiles = lower_bound_quantiles) %>%
+        dplyr::mutate(upper_bound_quantiles = upper_bound_quantiles) %>%
+        dplyr::mutate(y_centered = y - center) %>%
+        dplyr::mutate(ci_lower_y = y_centered - 1.96*se) %>%
+        dplyr::mutate(ci_upper_y = y_centered + 1.96*se) %>%
+        dplyr::mutate(statistic = (y_centered/se)) %>%
+        dplyr::mutate(p.value = 2*pt(q = -abs(statistic), df = degree_of_freedom)) %>% 
+        dplyr::mutate(primary_variable_name=primary_variable) %>% 
+        dplyr::mutate(feature=feature_name)
 
-  }
+    }
   
  
-  # View(df_predicted_risk_primary_variable)
+    # View(df_predicted_risk_primary_variable)
   
-  if(class(dependent_variables[[feature_name]])[1]=="Surv")
-  {
-    df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      dplyr::mutate(effect_size = exp(y_centered)
-             , effect_size_ci_lower = exp(ci_lower_y)
-             , effect_size_ci_upper = exp(ci_upper_y))
-  } else {
-    df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
-      dplyr::mutate(effect_size = y_centered
-             , effect_size_ci_lower = ci_lower_y
-             , effect_size_ci_upper = ci_upper_y)
-  }
-  regression_model_df_stats = broom::tidy(regression_model) %>% dplyr::mutate(feature=feature_name) %>% dplyr::mutate(primary_variable_name=primary_variable)
+    if(class(dependent_variables[[feature_name]])[1]=="Surv")
+    {
+      df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
+        dplyr::mutate(effect_size = exp(y_centered)
+               , effect_size_ci_lower = exp(ci_lower_y)
+               , effect_size_ci_upper = exp(ci_upper_y))
+    } else {
+      df_predicted_risk_primary_variable <- df_predicted_risk_primary_variable %>%
+        dplyr::mutate(effect_size = y_centered
+               , effect_size_ci_lower = ci_lower_y
+               , effect_size_ci_upper = ci_upper_y)
+    }
   return(list(regression_model_df_stats,df_predicted_risk_primary_variable))
+  } else {
+    return(list(regression_model_df_stats))
+  }
 }
 
 #' Run all associations for a given dataset
@@ -337,10 +342,11 @@ regression <- function(j,independent_variables,dependent_variables,primary_varia
 #' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","pspline","ns")
 #' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @keywords regression, initial association
-run_associations <- function(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds){
+run_associations <- function(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots){
   dependent_variables <- dplyr::as_tibble(x[[1]])
   classes = dependent_variables %>% summarise_all(class)
   classes = as.character(classes)
@@ -387,7 +393,7 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
     print('The following variables are in both the dependent and independent datasets. This may cause some some regressions to fail, though the pipeline will still run to completion.')
     print(overlap)
   }
-  out = purrr::map(seq_along(dependent_variables %>% dplyr::select(-.data$sampleID)), function(j) regression(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
+  out = purrr::map(seq_along(dependent_variables %>% dplyr::select(-.data$sampleID)), function(j) regression(j,independent_variables,dependent_variables,primary_variable,constant_adjusters,model_type,proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots))
   out_success = out[unlist(purrr::map(out,function(x) class(x)=="list"))]
   if(length(out_success)!=length(out)){
     print(paste('Dropping',length(out)-length(out_success),'features with regressions that failed to converge.'))
@@ -400,12 +406,18 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
     #quit()
   }
   out_success_model_out = purrr::map(out_success, function(x) x[[1]])
-  out_success_model_out_termplot = purrr::map(out_success, function(x) x[[2]])
-  out_success_model_out_termplot = dplyr::bind_rows(out_success_model_out_termplot)
+  if(make_termPlots == TRUE) {
+    out_success_model_out_termplot = purrr::map(out_success, function(x) x[[2]])
+    out_success_model_out_termplot = dplyr::bind_rows(out_success_model_out_termplot)
+  }
   
   out_success_model_out = out_success_model_out %>% dplyr::bind_rows() %>% dplyr::filter(grepl(primary_variable,.data$term)==TRUE) %>% group_by(term) %>% dplyr::mutate( bonferroni = stats::p.adjust(.data$p.value, method = "bonferroni"), BH = stats::p.adjust(.data$p.value, method = "BH"), BY = stats::p.adjust(.data$p.value, method = "BY"))
   # out_success = out_success %>% dplyr::mutate(dataset_id=x[[3]])
-  return(list('output' = out_success_model_out,'vibrate' = vibrate,'termplot'=out_success_model_out_termplot))
+  if(make_termPlots == TRUE) {
+    return(list('output' = out_success_model_out,'vibrate' = vibrate,'termplot'=out_success_model_out_termplot))
+  } else {
+    return(list('output' = out_success_model_out,'vibrate' = vibrate))
+  }
 }
 
 #' Deploy associations across datasets
@@ -425,24 +437,31 @@ run_associations <- function(x,primary_variable,constant_adjusters,model_type,pr
 #' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","pspline","ns")
 #' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @keywords regression, initial association
 #' @export
-compute_initial_associations <- function(bound_data,primary_variable, constant_adjusters = NULL,model_type = 'glm', proportion_cutoff = 1,vibrate = TRUE,family = gaussian(),ids = NULL,strata =NULL,weights =NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds){
+compute_initial_associations <- function(bound_data,primary_variable, constant_adjusters = NULL,model_type = 'glm', proportion_cutoff = 1,vibrate = TRUE,family = gaussian(),ids = NULL,strata =NULL,weights =NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds,make_termPlots){
   # print("In compute_initial_associations")
   # print(weights)
   
-  output = apply(bound_data, 1, function(x) run_associations(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
+  output = apply(bound_data, 1, function(x) run_associations(x,primary_variable,constant_adjusters,model_type,proportion_cutoff,vibrate,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots))
   # View(output)
   output_regs = purrr::map(output, function(x) x[[1]])
   output_vib = unlist(unname(unique(purrr::map(output, function(x) x[[2]]))))
-  output_term = purrr::map(output, function(x) x[[3]])
+  if(make_termPlots == TRUE) {
+    output_term = purrr::map(output, function(x) x[[3]])
+    output_term = dplyr::bind_rows(output_term)
+  }
   if(FALSE %in% output_vib & vibrate!=FALSE){
     output_vib=FALSE
     print('For at least one dataset, we dropped all the variables that you could possible vibrate over due to lacking multiple levels. Vibrate parameter being set to FALSE.')
   }
   output_regs = dplyr::bind_rows(output_regs)
-  output_term = dplyr::bind_rows(output_term)
-  return(list('output'=output_regs,'vibrate'=output_vib,'termplot'=output_term))
+  if(make_termPlots == TRUE) {
+    return(list('output'=output_regs,'vibrate'=output_vib,'termplot'=output_term))
+  } else {
+    return(list('output'=output_regs,'vibrate'=output_vib))
+  }
 }

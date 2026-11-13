@@ -278,39 +278,45 @@ summarize_vibration_data_by_feature <- function(df,center_for_effect_size){
 #' @param constant_adjusters A character vector (or just one string) corresponding to column names in your dataset to include in every vibration. (default = NULL)
 #' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @param center_for_effect_size determines how to calculate janus effect. 0 if values are linear, 1 if values are hazard ratio or risk ratios or fold differences 
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
 #' @keywords voe analysis
 #' @importFrom rlang .data
 #' @importFrom dplyr "%>%"
 #' @export
-analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size){
+analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjusters,num_knots,center_for_effect_size,make_termPlots){
   # print("In analyze voe data")
   voe_annotated =get_adjuster_expanded_vibrations(vibration_output[[1]], vibration_output[[2]],constant_adjusters)
   #View(voe_annotated)
   voe_unnested_annotated = filter_unnest_feature_vib(voe_annotated) %>% dplyr::select(-.data$vars)
   # View(voe_unnested_annotated)
-  voe_termplot_unnested = voe_annotated %>% 
-    dplyr::slice(which(purrr::map_lgl(voe_annotated$termplot_fit, ~class(.)[[1]] == "data.frame"))) %>% 
-    tidyr::unnest(.data$termplot_fit) %>% 
-    dplyr::select(-c(vars, full_fits, feature_fit))
-  View(voe_termplot_unnested)
+  if(make_termPlots == TRUE) {
+    voe_termplot_unnested = voe_annotated %>% 
+      dplyr::slice(which(purrr::map_lgl(voe_annotated$termplot_fit, ~class(.)[[1]] == "data.frame"))) %>% 
+      tidyr::unnest(.data$termplot_fit) %>% 
+      dplyr::select(-c(vars, full_fits, feature_fit))
+  }
   # print("analyze voe data")
   
-  if(length(num_knots) > 1 | num_knots[1] > 0) {
+  if((length(num_knots) > 1 | num_knots[1] > 0) & make_termPlots == TRUE) {
     summarized = summarize_vibration_data_by_feature_termplot(df=voe_termplot_unnested,center_for_effect_size=center_for_effect_size)
   } else {
     # print("Here!")
-    #summarized = summarize_vibration_data_by_feature(voe_unnested_annotated,center_for_effect_size)
-    summarized = summarize_vibration_data_by_feature_termplot(df=voe_termplot_unnested,center_for_effect_size=center_for_effect_size)
+    summarized = summarize_vibration_data_by_feature(voe_unnested_annotated,center_for_effect_size)
+    #summarized = summarize_vibration_data_by_feature_termplot(df=voe_termplot_unnested,center_for_effect_size=center_for_effect_size)
   }
   c_analysis='No confounder analysis completed.'
-  # if(confounder_analysis==TRUE & num_knots[1] == 0 & length(num_knots) == 1){ # NOTE! WE NEED TO DO THIS FOR NON LINEAR BUT NOT NOW
-  #   if(nrow(voe_unnested_annotated)>=10){
-  #     c_analysis = find_confounders_linear(voe_unnested_annotated)
-  #   }
-  #   else{
-  #     print('Skipping confounder analysis, as not enough vibrations (under 10) completed to make it worthwhile.') 
-  #   }
-  # } 
-  return(list('summarized_vibration_output'= summarized,'confounder_analysis'=c_analysis,'data'=voe_unnested_annotated,'termplot_data'=voe_termplot_unnested))
+  if(confounder_analysis==TRUE & (num_knots[1] == 0 | length(num_knots) == 0)){ # NOTE! WE NEED TO DO THIS FOR NON LINEAR BUT NOT NOW
+     if(nrow(voe_unnested_annotated)>=10){
+       c_analysis = find_confounders_linear(voe_unnested_annotated)
+     }
+     else{
+       print('Skipping confounder analysis, as not enough vibrations (under 10) completed to make it worthwhile.') 
+     }
+  } 
+  if(make_termPlots == TRUE) {
+    return(list('summarized_vibration_output'= summarized,'confounder_analysis'=c_analysis,'data'=voe_unnested_annotated,'termplot_data'=voe_termplot_unnested))
+  } else {
+    return(list('summarized_vibration_output'= summarized,'confounder_analysis'=c_analysis,'data'=voe_unnested_annotated))
+  }
 }
 

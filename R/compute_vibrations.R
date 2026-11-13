@@ -19,11 +19,12 @@
 #' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","pspline","ns")
 #' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
 #' @keywords regression, initial association
 #' @importFrom rlang .data
 #' @importFrom dplyr %>%
 #' @importFrom splines ns
-vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,primary_variable,constant_adjusters,model_type,max_vibration_num,dataset_id,proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds){
+vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,primary_variable,constant_adjusters,model_type,max_vibration_num,dataset_id,proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots){
   # print(constant_adjusters)
   if(is.null(max_vars_in_model)==FALSE){
     if(max_vars_in_model < length(variables_to_vibrate)){
@@ -293,20 +294,21 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
     # View(df_predicted_risk_primary_variable)
     return(df_predicted_risk_primary_variable)
   }
+  if(make_termPlots == TRUE) {
+    tibble_out$termplot_fit = purrr::map(tibble_out$full_fits
+                                         , function(x) tryCatch(predict_for_primary_variable(x
+                                                                                             ,primary_variable
+                                                                                             ,feature
+                                                                                             ,quantile_bounds
+                                                                                             ,num_knots
+                                                                                             ,dsn
+                                                                                             ,model_type)
+                                                                # ,warning = function(w) w
+                                                                ,error = function(e) e))
   
-  tibble_out$termplot_fit = purrr::map(tibble_out$full_fits
-                                       , function(x) tryCatch(predict_for_primary_variable(x
-                                                                                           ,primary_variable
-                                                                                           ,feature
-                                                                                           ,quantile_bounds
-                                                                                           ,num_knots
-                                                                                           ,dsn
-                                                                                           ,model_type)
-                                                              # ,warning = function(w) w
-                                                              ,error = function(e) e))
-  
-  # print("Here")
-  # View(tibble_out$termplot_fit)
+    # print("Here")
+    # View(tibble_out$termplot_fit)
+  }
   return(tibble_out)
 }
 
@@ -330,10 +332,11 @@ vibrate <- function(merged_data,variables_to_vibrate,max_vars_in_model,feature,p
 #' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","pspline","ns")
 #' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
 #' @importFrom rlang .data
 #' @importFrom dplyr %>%
 #' @keywords regression, initial association
-dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_type,features_of_interest,max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds){
+dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_type,features_of_interest,max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots){
   # print("Here!")
   print(paste('Computing',max_vibration_num,'vibrations for',length(features_of_interest),'feature(s) in dataset number',subframe[[3]]))
   dep_sub = subframe[[1]]
@@ -355,12 +358,12 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
   if(as.integer(cores)>1){
     options(future.globals.maxSize = +Inf)
     future::plan(future::multisession, workers = as.integer(cores))
-    output = furrr::future_map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, feature=x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds),
+    output = furrr::future_map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, feature=x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots),
                                .options = furrr::furrr_options(packages = c("dplyr", "magrittr", "broom", "MASS", "survey", "survival")))
   }
   else{
     # print("Before vibrate function call")
-    output = purrr::map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds))
+    output = purrr::map(features_of_interest, function(x) vibrate(merged_data, variables_to_vibrate, max_vars_in_model, x, primary_variable,constant_adjusters,model_type,max_vibration_num, subframe[[3]],proportion_cutoff,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots))
     # print("After vibrate function call")
   }
   # View(output)
@@ -388,12 +391,13 @@ dataset_vibration <-function(subframe,primary_variable,constant_adjusters,model_
 #' @param num_knots If num_knots is greater than 0 generate the B-spline basis matrix for a natural cubic spline on primary_variable
 #' @param spline_type if num_knots is 0 then this is NULL. Otherwise define the spline function as a string. Options are c("bs","pspline","ns")
 #' @param quantile_bounds if your primary variable is a factor corresponding to quantiles set this, otherwise default is NULL.
+#' @param make_termPlots FALSE by default. If TRUE, we output termPlots which quantify the associations at different concentrations
 #' @keywords regression, initial association
 #' @importFrom rlang .data
 #' @importFrom dplyr %>%
 #' @export
-compute_vibrations <- function(bound_data,primary_variable,constant_adjusters = NULL,model_type = 'glm',features_of_interest,max_vibration_num = 10000,proportion_cutoff = 1,cores = 1,max_vars_in_model = 20,family = gaussian(),ids = NULL,strata = NULL,weights = NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds){
-  output = dplyr::bind_rows(apply(bound_data, 1, function(subframe) dataset_vibration(subframe, primary_variable,constant_adjusters,model_type ,features_of_interest,max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds)))
+compute_vibrations <- function(bound_data,primary_variable,constant_adjusters = NULL,model_type = 'glm',features_of_interest,max_vibration_num = 10000,proportion_cutoff = 1,cores = 1,max_vars_in_model = 20,family = gaussian(),ids = NULL,strata = NULL,weights = NULL,nest = NULL,num_knots=0,spline_type=NULL,quantile_bounds,make_termPlots){
+  output = dplyr::bind_rows(apply(bound_data, 1, function(subframe) dataset_vibration(subframe, primary_variable,constant_adjusters,model_type ,features_of_interest,max_vibration_num, proportion_cutoff,cores,max_vars_in_model,family,ids,strata,weights,nest,num_knots,spline_type,quantile_bounds,make_termPlots)))
   output = output %>% dplyr::filter(!is.na(.data$dependent_feature))
   # View(output)
   vibration_variables = unique(unlist(unname(apply(bound_data, 1, function(subframe) subframe[[2]] %>% dplyr::select(-.data$sampleID,-primary_variable) %>% colnames))))
