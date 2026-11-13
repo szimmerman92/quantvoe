@@ -130,7 +130,6 @@ find_confounders_linear <- function(voe_list_for_reg){
 #' @importFrom rlang .data
 #' @importFrom magrittr "%>%"
 summarize_vibration_data_by_feature_termplot <- function(df,center_for_effect_size){
-  View(df)
   summarized_voe_data <- df %>% 
     group_by(independent_feature,dependent_feature,x) %>%
     summarise(estimate_quantile_1 = quantile(effect_size, probs = 0.01, na.rm = TRUE)
@@ -288,7 +287,6 @@ analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjus
   #View(voe_annotated)
   voe_unnested_annotated = filter_unnest_feature_vib(voe_annotated) %>% dplyr::select(-.data$vars)
   # View(voe_unnested_annotated)
-  View(voe_annotated$termplot_fit)
   voe_termplot_unnested = voe_annotated %>% 
     dplyr::slice(which(purrr::map_lgl(voe_annotated$termplot_fit, ~class(.)[[1]] == "data.frame"))) %>% 
     tidyr::unnest(.data$termplot_fit) %>% 
