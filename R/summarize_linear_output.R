@@ -291,7 +291,7 @@ analyze_voe_data <- function(vibration_output,confounder_analysis,constant_adjus
     dplyr::slice(which(purrr::map_lgl(voe_annotated$termplot_fit, ~class(.)[[1]] == "data.frame"))) %>% 
     tidyr::unnest(.data$termplot_fit) %>% 
     dplyr::select(-c(vars, full_fits, feature_fit))
-  # View(voe_termplot_unnested)
+  View(voe_termplot_unnested)
   # print("analyze voe data")
   
   if(length(num_knots) > 1 | num_knots[1] > 0) {
